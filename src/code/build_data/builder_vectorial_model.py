@@ -108,4 +108,4 @@ def load_file(path, file_name):
             raise e
         
 # process_files_in_folder('./test_documents')
-# init('./test_documents')
+init('./test_documents')
