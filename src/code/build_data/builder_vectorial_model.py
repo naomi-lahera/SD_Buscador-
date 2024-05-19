@@ -7,7 +7,7 @@ from typing import List
 from gensim.models import TfidfModel
 from gensim.matutils import corpus2dense
 from gensim.corpora import Dictionary
-from preprocessing_data.preprocess import prepro
+from build_data.preprocessing_data.preprocess import prepro
 from core.doc import document
 import joblib
 import ir_datasets
@@ -68,9 +68,9 @@ def init(folder_path):
     for doc in documents.values():
         doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
         
-    save_file(tfidf_object, './../data/joblib', 'tfidf_object')
-    save_file(dictionary, './../data/joblib', 'dictionary')
-    save_file(documents, './../data/joblib', 'documents')
+    save_file(tfidf_object, './data/joblib', 'tfidf_object')
+    save_file(dictionary, './data/joblib', 'dictionary')
+    save_file(documents, './data/joblib', 'documents')
         
 def load_corpus_cranfield(self, corpus_name):
     dataset = ir_datasets.load("cranfield")
@@ -90,9 +90,9 @@ def load_corpus_cranfield(self, corpus_name):
     for doc in documents:
         doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
     
-    save_file(tfidf_object, './../data/joblib', 'tfidf_object')
-    save_file(dictionary, './../data/joblib', 'dictionary')
-    save_file(documents, './../data/joblib', 'documents')
+    save_file(tfidf_object, './data/joblib', 'tfidf_object')
+    save_file(dictionary, './data/joblib', 'dictionary')
+    save_file(documents, './data/joblib', 'documents')
     print('saved corpus...')
 
 def save_file(file, path, file_name):
@@ -108,4 +108,4 @@ def load_file(path, file_name):
             raise e
         
 # process_files_in_folder('./test_documents')
-init('./test_documents')
+# init('./test_documents')

@@ -1,5 +1,11 @@
-from info.save_info import save_file
 from build_data.builder import Searcher
+import joblib
+
+def save_file(file, path, file_name):
+        try:
+            joblib.dump(file, f'{path}/{file_name}.joblib')
+        except Exception as e:
+            raise e
 
 def run():
     toy_corpus = {
@@ -12,7 +18,7 @@ def run():
     save_file(toy_corpus, './../data', 'toy_text_docs')
     print('saved file...')
 
-    sr = Searcher('toy_corpus')
+    # sr = Searcher('toy_corpus')
     print(sr.corpus)
 
 if __name__ == '__main__':
