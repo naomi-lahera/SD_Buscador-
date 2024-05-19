@@ -1,5 +1,5 @@
 from model_interface import model_interface
-from build_data.preprocessing_data.preprocess import prepro 
+from preprocess import prepro 
 from core.doc import document, doc_content 
 from gensim.matutils import corpus2dense
 from gensim.models import TfidfModel
@@ -36,7 +36,7 @@ class vectorial_model(model_interface):
 
         ranked = dict(sorted(simils.items(), key=lambda item: item[1], reverse=True))
         return [
-            doc_content(corpus_tfidf_dense[k].content) 
+            corpus_tfidf_dense[k].content 
             for k, v in ranked.items() 
             if v >= precission
             ]

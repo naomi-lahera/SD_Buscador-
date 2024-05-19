@@ -1,3 +1,4 @@
-from grocer.grocer_tfidf_joblib import grocer_joblib
+from grocer_tfidf_joblib import grocer_vectorial_model_joblib
 
-grocer_joblib.add_doc()
+for doc in grocer_vectorial_model_joblib.get_doc_query('test'):
+    print(doc.text)

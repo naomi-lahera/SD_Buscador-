@@ -6,9 +6,14 @@
 
 import joblib
 from grocer_interface import grocer
-from build_data.preprocessing_data.preprocess import prepro
-from models.vectorial_model import vectorial_model
+#? OJO Sacar los archivos vectorial_model y model_interface de esta carpeta
+# from models.vectorial_model import vectorial_model
+from vectorial_model import vectorial_model
+#? OJO Sacar el archivo doc de esta carpeta
+# from core.doc import document
 from core.doc import document
+
+#? Sacar los archivos preprocess de esta carpeta
 
 class grocer_vectorial_model_joblib(grocer):
     def save_file(file, path, file_name):
@@ -49,9 +54,10 @@ class grocer_vectorial_model_joblib(grocer):
     
     def get_doc_query(query):
         dictionary = grocer_vectorial_model_joblib.load_file('./../data/joblib', 'dictionary')
+        print(f'dictionary : {type(dictionary)}')
         tfidf_object = grocer_vectorial_model_joblib.load_file('./../data/joblib', 'tfidf_object')
-        docs_ = grocer_vectorial_model_joblib.load_file('./../data/joblib', 'docs')
-        docs = [document(doc) for doc in docs_]
+        print('tfidf_object : ', type(tfidf_object))
+        docs_ = grocer_vectorial_model_joblib.load_file('./../data/joblib', 'documents')
+        #docs = [document(doc) for doc in docs_]
             
-        vectorial_model.retrieve_documents(tfidf_object, docs, dictionary, query)
-    
+        return vectorial_model.retrieve_documents(tfidf_object, docs_, dictionary, query)

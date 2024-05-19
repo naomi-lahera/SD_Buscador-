@@ -53,19 +53,19 @@ def process_files_in_folder(folder_path):
     
 def init(folder_path):
     docs_text = process_files_in_folder(folder_path)
-    documents: List[document] = []
+    documents: dict[int, document] = dict()
     tokenized_docs: dict[int, List[str]] = dict()
 
     for doc_text in docs_text:
         new_doc = document(None, doc_text)
         tokenized_docs[new_doc.id] = prepro.tokenize(doc_text)
         
-        documents.append(new_doc)
+        documents[new_doc.id] = new_doc
         
     dictionary: Dictionary = prepro.get_dictionary(tokenized_docs.values())
     tfidf_object = TfidfModel(prepro.get_bow_corpus(tokenized_docs.values(), dictionary))
     
-    for doc in documents:
+    for doc in documents.values():
         doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
         
     save_file(tfidf_object, './../data/joblib', 'tfidf_object')
@@ -94,8 +94,6 @@ def load_corpus_cranfield(self, corpus_name):
     save_file(dictionary, './../data/joblib', 'dictionary')
     save_file(documents, './../data/joblib', 'documents')
     print('saved corpus...')
-        
-    return corpus
 
 def save_file(file, path, file_name):
         try:
