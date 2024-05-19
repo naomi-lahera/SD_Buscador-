@@ -72,29 +72,30 @@ def init(folder_path):
     save_file(dictionary, './../data/joblib', 'dictionary')
     save_file(documents, './../data/joblib', 'documents')
         
-def load_corpus(self, corpus_name):
-    try:
-        corpus = load_file('./../data', corpus_name)
-        print('loaded corpus...')
-    except:
-        dataset = ir_datasets.load("cranfield")
-        corpus = dict()
-        for doc in dataset.docs_iter():
-            corpus[doc[0]] = doc[2]
-        save_file(corpus, './../data', 'corpus')
-        print('saved corpus...')
+def load_corpus_cranfield(self, corpus_name):
+    dataset = ir_datasets.load("cranfield")
+        
+    documents: List[document] = []
+    tokenized_docs: dict[int, List[str]] = dict()
+
+    for doc in dataset.docs_iter():
+        new_doc = document(doc[0], doc[2])
+        tokenized_docs[new_doc.id] = prepro.tokenize(doc[2])
+        
+        documents.append(new_doc)
+        
+    dictionary: Dictionary = prepro.get_dictionary(tokenized_docs.values())
+    tfidf_object = TfidfModel(prepro.get_bow_corpus(tokenized_docs.values(), dictionary))
+    
+    for doc in documents:
+        doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
+    
+    save_file(tfidf_object, './../data/joblib', 'tfidf_object')
+    save_file(dictionary, './../data/joblib', 'dictionary')
+    save_file(documents, './../data/joblib', 'documents')
+    print('saved corpus...')
         
     return corpus
-
-def process_corpus(corpus):
-    tokenized_docs = prepro.tokenize_corpus(corpus)
-    print('tokenized corpus...')
-    dictionary = prepro.get_dictionary(tokenized_docs)
-    print('builded dictionary...')
-    corpus_bow = prepro.get_bow_corpus(tokenized_docs, dictionary)
-    print('builded corpus to bow...')
-    
-    return tokenized_docs, dictionary, corpus_bow
 
 def save_file(file, path, file_name):
         try:
@@ -109,4 +110,4 @@ def load_file(path, file_name):
             raise e
         
 # process_files_in_folder('./test_documents')
-init('./test_documents')
+# init('./test_documents')
