@@ -5,6 +5,7 @@ import glob
 from typing import List 
 
 from gensim.models import TfidfModel
+from sklearn.decomposition import PCA
 from gensim.matutils import corpus2dense
 from gensim.corpora import Dictionary
 from build_data.preprocessing_data.preprocess import prepro
@@ -32,9 +33,10 @@ def read_txt_md(file_path):
 def process_files_in_folder(folder_path):
     docs = []
     for file_path in glob.glob(os.path.join(folder_path, "*")):
-        _, ext = os.path.splitext(file_path)
+        name, ext = os.path.splitext(file_path)
+        # print('file_name: ', name)
         if ext.lower() in ['.pdf', '.docx', '.txt', '.md']:
-            print(f"Processing file: {file_path}")
+            # print(f"Processing file: {file_path}")
             
             # if ext == ".pdf":
             #     text = read_pdf(file_path)
@@ -45,19 +47,20 @@ def process_files_in_folder(folder_path):
             
             text = read_txt_md(file_path)
             
-            print(text[:100])  # Print the first part of the extracted text
+            # print(text[:100])  # Print the first part of the extracted text
             
-            docs.append(text)
+            docs.append((name, text))
     
     return docs
     
 def init(folder_path):
+    #TODO Poner el titulo del documento que sea el nombre del archivo que se esta leyendo
     docs_text = process_files_in_folder(folder_path)
     documents: dict[int, document] = dict()
     tokenized_docs: dict[int, List[str]] = dict()
 
-    for doc_text in docs_text:
-        new_doc = document(None, doc_text)
+    for title, doc_text in docs_text:
+        new_doc = document(title, doc_text)
         tokenized_docs[new_doc.id] = prepro.tokenize(doc_text)
         
         documents[new_doc.id] = new_doc
@@ -65,35 +68,53 @@ def init(folder_path):
     dictionary: Dictionary = prepro.get_dictionary(tokenized_docs.values())
     tfidf_object = TfidfModel(prepro.get_bow_corpus(tokenized_docs.values(), dictionary))
     
+    corpus2bow = [dictionary.doc2bow(doc) for doc in tokenized_docs.values()]
+    
+    corpus_tfidf_dense = corpus2dense(tfidf_object[corpus2bow], dictionary.num_pos, len(tokenized_docs)).T
+    reduction_model = get_PCA(corpus_tfidf_dense)
+    
     for doc in documents.values():
-        doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
+        doc2bow = dictionary.doc2bow(tokenized_docs[doc.id])
+        dense_doc = corpus2dense([tfidf_object[doc2bow]], dictionary.num_pos, 1).T
+        doc.doc_tfidf_dense = reduction_model.transform(dense_doc)[0]
         
     save_file(tfidf_object, './data/joblib', 'tfidf_object')
-    save_file(dictionary, './data/joblib', 'dictionary')
+    save_file(reduction_model, './data/joblib', 'reduction_model')
     save_file(documents, './data/joblib', 'documents')
-        
-def load_corpus_cranfield(self, corpus_name):
-    dataset = ir_datasets.load("cranfield")
-        
-    documents: List[document] = []
-    tokenized_docs: dict[int, List[str]] = dict()
+    save_file(dictionary, './data/joblib', 'dictionary')
+    
 
-    for doc in dataset.docs_iter():
-        new_doc = document(doc[0], doc[2])
-        tokenized_docs[new_doc.id] = prepro.tokenize(doc[2])
+# def load_corpus_cranfield(self, corpus_name):
+#     dataset = ir_datasets.load("cranfield")
         
-        documents.append(new_doc)
+#     documents: List[document] = []
+#     tokenized_docs: dict[int, List[str]] = dict()
+
+#     for doc in dataset.docs_iter():
+#         new_doc = document(doc[0], doc[2])
+#         tokenized_docs[new_doc.id] = prepro.tokenize(doc[2])
         
-    dictionary: Dictionary = prepro.get_dictionary(tokenized_docs.values())
-    tfidf_object = TfidfModel(prepro.get_bow_corpus(tokenized_docs.values(), dictionary))
+#         documents.append(new_doc)
+        
+#     dictionary: Dictionary = prepro.get_dictionary(tokenized_docs.values())
+#     tfidf_object = TfidfModel(prepro.get_bow_corpus(tokenized_docs.values(), dictionary))
     
-    for doc in documents:
-        doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
+#     for doc in documents:
+#         doc.doc_tfidf_dense = corpus2dense([tfidf_object[dictionary.doc2bow(tokenized_docs[doc.id])]], dictionary.num_pos, 1)
     
-    save_file(tfidf_object, './data/joblib', 'tfidf_object')
-    save_file(dictionary, './data/joblib', 'dictionary')
-    save_file(documents, './data/joblib', 'documents')
-    print('saved corpus...')
+#     save_file(tfidf_object, './data/joblib', 'tfidf_object_cranfirld')
+#     save_file(dictionary, './data/joblib', 'dictionary_cranfirld')
+#     save_file(documents, './data/joblib', 'documents_cranfirld')
+#     print('saved corpus...')
+    
+def get_PCA(corpus_tfidf_dense):
+    # Entrenando el modelo de reducción de dimensiones
+
+    # Índice de varianza
+    variance = 0.90
+    reduction_model = PCA(variance).fit(corpus_tfidf_dense)
+
+    return reduction_model
 
 def save_file(file, path, file_name):
         try:

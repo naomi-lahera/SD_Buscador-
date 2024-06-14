@@ -46,12 +46,18 @@ class grocer_vectorial_model_joblib(grocer):
     def get_doc_id():
         pass
     
+    #? OJO se puede generalizar aun mas si no se leen los datos directamente en el grocer. Se debe crear una clase encargada de leer y escribir los datos. una para joblib quizas una para sql
+    #? que cambian la forma de leer en dependencia del tipo del archivo del que se lee 
     def get_docs_query(query):
         dictionary = grocer_vectorial_model_joblib.load_file('./data/joblib', 'dictionary')
-        print(f'dictionary : {type(dictionary)}')
+        # print(f'dictionary : {type(dictionary)}')
         tfidf_object = grocer_vectorial_model_joblib.load_file('./data/joblib', 'tfidf_object')
-        print('tfidf_object : ', type(tfidf_object))
+        # print('tfidf_object : ', type(tfidf_object))
         docs_ = grocer_vectorial_model_joblib.load_file('./data/joblib', 'documents')
+        # print('documents : ', type(docs_))
+        
+        reduction_model = grocer_vectorial_model_joblib.load_file('./data/joblib', 'reduction_model')
+        # print('loaded data...')
         #docs = [document(doc) for doc in docs_]
             
-        return vectorial_model.retrieve_documents(tfidf_object, docs_, dictionary, query)
+        return vectorial_model.retrieve_documents(tfidf_object, reduction_model, docs_, dictionary, query)
