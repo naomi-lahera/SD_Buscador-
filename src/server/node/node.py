@@ -5,6 +5,14 @@ from logic.core.doc import document
 from typing import List
 # from data_access_layer.grocer_tfidf_joblib import grocer_vectorial_model_joblib
 
+import logging
+
+# Configurar el nivel de log
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+
 # Operation codes
 FIND_SUCCESSOR = 1
 FIND_PREDECESSOR = 2
@@ -72,9 +80,13 @@ class Node(ChordNode):
                 #     query = data[1]
                 #     data_resp = self.search(query)
                 elif option == JOIN:
-                    node_ref = data[0]
-                    print('sending join msg')
-                    self.join(node_ref)
+                    # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
+                    node_ref = ChordNodeReference(data[2])
+                    if node_ref and node_ref.ip != self.ip:
+                        logger.debug(f'join to the chord network - {self.ip}')
+                        # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
+                        logger.debug(f'node_reference - {node_ref}')
+                        self.join(node_ref)
                     
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()

@@ -24,7 +24,7 @@ CHECK_PREDECESSOR = 6
 CLOSEST_PRECEDING_FINGER = 7
 STORE_KEY = 8
 RETRIEVE_KEY = 9
-JOIN = 10
+JOIN = 11
 
 # Function to hash a string using SHA-1 and return its integer representation
 def getShaRepr(data: str):
@@ -42,10 +42,10 @@ class ChordNodeReference:
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                logger.debug(f'_send_data: {self.ip}')
+                # logger.debug(f'_send_data: {self.ip}')
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
-                logger.debug(f'_send_data end: {self.ip}')
+                # logger.debug(f'_send_data end: {self.ip}')
                 return s.recv(1024)
         except Exception as e:
             print(f"Error sending data: {e}")
@@ -69,23 +69,24 @@ class ChordNodeReference:
             #         print("No response received.")
             #         return None
             
-            logger.debug(f'Broadcast: {self.ip}')
+            # logger.debug(f'Broadcast: {self.ip}')
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             s.sendto(f'{op}, {data}'.encode(), (str(socket.INADDR_BROADCAST), PORT))
             s.close()
-            logger.debug(f'Broadcast end: {self.ip}')
+            # logger.debug(f'Broadcast end: {self.ip}')
         # except Exception as e:
         #     print(f"Error sending data: {e}")
         #     # return None
         #     return b''
         
     # Method to find a chord network node to conect
-    def join(self, id: int) -> any:
-        logger.debug(f'join start: {self.ip}')
+    def join(self, ip) -> any:
+        # logger.debug(f'join start: {self.ip}')
         # response = self._send_data_global(JOIN, str(id)).decode().split(',')
-        self._send_data_global(JOIN, str(id))
-        logger.debug(f'join end: {self.ip}')
+        self._send_data_global(JOIN, ip)
+        # # logger.debug(f'join msg : {ip} - {self.ip}')
+        # logger.debug(f'join end: {self.ip}')
         # return ChordNodeReference(response[1], self.port)
 
     # Method to find the successor of a given id
@@ -199,8 +200,9 @@ class ChordNode:
       
     # Method to join a Chord network without 'node' reference as an entry point      
     def join_wr(self):
-        logger.debug(f'join_wr: {self.ip}')
-        self.ref.join(self.id)
+        # logger.debug(f'join_wr: {self.ip}')
+        # self.ref.join(self.ip)
+        self.ref.join(self.ref)
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
@@ -270,15 +272,21 @@ class ChordNode:
         
         while True:
             msg, _ = s.recvfrom(1024)
-            print(msg)
+            # print(msg)
             
-            logger.debug(f'Received broadcast: {self.ip}')
+            # logger.debug(f'Received broadcast: {self.ip}')
             
             msg = msg.decode().split(',')
+            
+            # logger.debug(f'recieved broadcast msg: {msg}')
+            
             option = int(msg[0])
+            
+            # logger.debug(f'option broadcast msg: {option} - {self.ip}')
             # new_node_ip = str(msg[1])
             
-            # if option == JOIN:
+            if option == JOIN:
+                # logger.debug(f'option broadcast msg: == JOIN - {self.ip}')
             #     self.ref._send_data(JOIN, {self.ref})
                 # response = f'{self.id},{self.ip}'.encode()
                 # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -286,6 +294,23 @@ class ChordNode:
                 #     s.bind((self.ip, self.port))
                 #     conn, addr = s.accept()
                 #     conn.sendall(response)
+                
+                # msg[2] es el ip del nodo
+                if msg[2] == self.ip:
+                    # logger.debug(f'My own broadcast msg: {self.id}')
+                    return
+                else:
+                    # self.ref._send_data(JOIN, {self.ref})
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                            # logger.debug(f'_send_data: {self.ip}')
+                            s.connect((msg[2], self.port))
+                            s.sendall(f'{JOIN},{self.ref}'.encode('utf-8'))
+                            # logger.debug(f'_send_data end: {self.ip}')
+                            return s.recv(1024)
+                    except Exception as e:
+                        print(f"Error sending data: {e}")
+                        return b''
                 #TODO Enviar respuesta
 
     # # Start server method to handle incoming requests
