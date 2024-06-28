@@ -3,7 +3,7 @@ import threading
 import socket
 from logic.core.doc import document
 from typing import List
-from data_access_layer.grocer_tfidf_joblib import grocer_vectorial_model_joblib
+# from data_access_layer.grocer_tfidf_joblib import grocer_vectorial_model_joblib
 
 # Operation codes
 FIND_SUCCESSOR = 1
@@ -16,6 +16,7 @@ CLOSEST_PRECEDING_FINGER = 7
 STORE_KEY = 8
 RETRIEVE_KEY = 9
 SEARCH = 10
+JOIN = 11
 
 class Node(ChordNode):    
     def __init__(self, ip: str, port: int = 8001, m: int = 160):
@@ -23,7 +24,8 @@ class Node(ChordNode):
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
     
     def search(self, query) -> List[document]:
-        return grocer_vectorial_model_joblib.get_docs_query(query)[:5]
+        # return grocer_vectorial_model_joblib.get_docs_query(query)[:5]
+        pass
     
     # Start server method to handle incoming requests
     def start_server(self):
@@ -66,10 +68,14 @@ class Node(ChordNode):
                 elif option == RETRIEVE_KEY:
                     key = data[1]
                     data_resp = self.data.get(key, '')
-                elif option == SEARCH:
-                    query = data[1]
-                    data_resp = self.search(query)
-
+                # elif option == SEARCH:
+                #     query = data[1]
+                #     data_resp = self.search(query)
+                elif option == JOIN:
+                    node_ref = data[0]
+                    print('sending join msg')
+                    self.join(node_ref)
+                    
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()
                     conn.sendall(response)

@@ -8,8 +8,10 @@ if __name__ == "__main__":
     node = Node(ip)
 
     if len(sys.argv) >= 2:
-        other_ip = sys.argv[1]
-        node.join(ChordNodeReference(other_ip, node.port))
+        # other_ip = sys.argv[1]
+        # node.join(ChordNodeReference(other_ip, node.port))
+        
+        node.join_wr()
     
     while True:
         pass

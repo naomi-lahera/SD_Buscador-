@@ -4,6 +4,16 @@ import sys
 import time
 import hashlib
 
+import logging
+
+# Configurar el nivel de log
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+
+PORT = 8001
+
 # Operation codes
 FIND_SUCCESSOR = 1
 FIND_PREDECESSOR = 2
@@ -14,6 +24,7 @@ CHECK_PREDECESSOR = 6
 CLOSEST_PRECEDING_FINGER = 7
 STORE_KEY = 8
 RETRIEVE_KEY = 9
+JOIN = 10
 
 # Function to hash a string using SHA-1 and return its integer representation
 def getShaRepr(data: str):
@@ -24,18 +35,58 @@ class ChordNodeReference:
     def __init__(self, ip: str, port: int = 8001):
         self.id = getShaRepr(ip)
         self.ip = ip
-        self.port = port
+        # self.port = port
+        self.port = PORT
 
     # Internal method to send data to the referenced node
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                logger.debug(f'_send_data: {self.ip}')
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
+                logger.debug(f'_send_data end: {self.ip}')
                 return s.recv(1024)
         except Exception as e:
             print(f"Error sending data: {e}")
             return b''
+        
+    # Internal method to send data to all nodes
+    def _send_data_global(self, op: int, data: str = None) -> bytes:
+        # try:
+            # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            #     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            #     s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), int(self.port)))
+            #     time.sleep(3)  # Espera un poco para dar tiempo a que la respuesta llegue
+
+            #     s.settimeout(10)  # Establece un tiempo límite para evitar bloquearse indefinidamente
+            #     response = s.recv(1024)
+
+            #     if response:
+            #         print(f"Response received: {response.decode()}")
+            #         return response
+            #     else:
+            #         print("No response received.")
+            #         return None
+            
+            logger.debug(f'Broadcast: {self.ip}')
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.sendto(f'{op}, {data}'.encode(), (str(socket.INADDR_BROADCAST), PORT))
+            s.close()
+            logger.debug(f'Broadcast end: {self.ip}')
+        # except Exception as e:
+        #     print(f"Error sending data: {e}")
+        #     # return None
+        #     return b''
+        
+    # Method to find a chord network node to conect
+    def join(self, id: int) -> any:
+        logger.debug(f'join start: {self.ip}')
+        # response = self._send_data_global(JOIN, str(id)).decode().split(',')
+        self._send_data_global(JOIN, str(id))
+        logger.debug(f'join end: {self.ip}')
+        # return ChordNodeReference(response[1], self.port)
 
     # Method to find the successor of a given id
     def find_successor(self, id: int) -> 'ChordNodeReference':
@@ -93,7 +144,8 @@ class ChordNode:
     def __init__(self, ip: str, port: int = 8001, m: int = 160):
         self.id = getShaRepr(ip)
         self.ip = ip
-        self.port = port
+        # self.port = port
+        self.port = PORT
         self.ref = ChordNodeReference(self.ip, self.port)
         self.succ = self.ref  # Initial successor is itself
         self.pred = None  # Initially no predecessor
@@ -107,6 +159,7 @@ class ChordNode:
         threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
         # threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        threading.Thread(target=self._reciev_broadcast, daemon=True).start() ## Reciev broadcast message
 
     # Helper method to check if a value is in the range (start, end]
     def _inbetween(self, k: int, start: int, end: int) -> bool:
@@ -143,6 +196,11 @@ class ChordNode:
         else:
             self.succ = self.ref
             self.pred = None
+      
+    # Method to join a Chord network without 'node' reference as an entry point      
+    def join_wr(self):
+        logger.debug(f'join_wr: {self.ip}')
+        self.ref.join(self.id)
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
@@ -204,6 +262,31 @@ class ChordNode:
         key_hash = getShaRepr(key)
         node = self.find_succ(key_hash)
         return node.retrieve_key(key)
+    
+    # Reciev boradcast message 
+    def _reciev_broadcast(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind(('', int(PORT)))
+        
+        while True:
+            msg, _ = s.recvfrom(1024)
+            print(msg)
+            
+            logger.debug(f'Received broadcast: {self.ip}')
+            
+            msg = msg.decode().split(',')
+            option = int(msg[0])
+            # new_node_ip = str(msg[1])
+            
+            # if option == JOIN:
+            #     self.ref._send_data(JOIN, {self.ref})
+                # response = f'{self.id},{self.ip}'.encode()
+                # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                #     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                #     s.bind((self.ip, self.port))
+                #     conn, addr = s.accept()
+                #     conn.sendall(response)
+                #TODO Enviar respuesta
 
     # # Start server method to handle incoming requests
     # def start_server(self):
@@ -250,7 +333,8 @@ class ChordNode:
     #             if data_resp:
     #                 response = f'{data_resp.id},{data_resp.ip}'.encode()
     #                 conn.sendall(response)
-    #             conn.close()
+    #             conn.close()      
+    
 
 # if __name__ == "__main__":
 #     ip = socket.gethostbyname(socket.gethostname())
