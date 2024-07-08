@@ -81,12 +81,12 @@ class Node(ChordNode):
                 #     data_resp = self.search(query)
                 elif option == JOIN:
                     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-                    node_ref = ChordNodeReference(data[2])
-                    if node_ref and node_ref.ip != self.ip:
+                    chord_node_ref = ChordNodeReference(data[2])
+                    if chord_node_ref:
                         logger.debug(f'join to the chord network - {self.ip}')
                         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                        logger.debug(f'node_reference - {node_ref}')
-                        self.join(node_ref)
+                        logger.debug(f'node_reference - {chord_node_ref.ip}')
+                        self.join(chord_node_ref)
                     
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()

@@ -12,8 +12,6 @@ logging.basicConfig(level=logging.DEBUG,
 
 logger = logging.getLogger(__name__)
 
-PORT = 8001
-
 # Operation codes
 FIND_SUCCESSOR = 1
 FIND_PREDECESSOR = 2
@@ -35,8 +33,7 @@ class ChordNodeReference:
     def __init__(self, ip: str, port: int = 8001):
         self.id = getShaRepr(ip)
         self.ip = ip
-        # self.port = port
-        self.port = PORT
+        self.port = port
 
     # Internal method to send data to the referenced node
     def _send_data(self, op: int, data: str = None) -> bytes:
@@ -50,48 +47,11 @@ class ChordNodeReference:
         except Exception as e:
             print(f"Error sending data: {e}")
             return b''
-        
-    # Internal method to send data to all nodes
-    def _send_data_global(self, op: int, data: str = None) -> bytes:
-        # try:
-            # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            #     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            #     s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), int(self.port)))
-            #     time.sleep(3)  # Espera un poco para dar tiempo a que la respuesta llegue
-
-            #     s.settimeout(10)  # Establece un tiempo límite para evitar bloquearse indefinidamente
-            #     response = s.recv(1024)
-
-            #     if response:
-            #         print(f"Response received: {response.decode()}")
-            #         return response
-            #     else:
-            #         print("No response received.")
-            #         return None
-            
-            # logger.debug(f'Broadcast: {self.ip}')
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            s.sendto(f'{op}, {data}'.encode(), (str(socket.INADDR_BROADCAST), PORT))
-            s.close()
-            # logger.debug(f'Broadcast end: {self.ip}')
-        # except Exception as e:
-        #     print(f"Error sending data: {e}")
-        #     # return None
-        #     return b''
-        
-    # Method to find a chord network node to conect
-    def join(self, ip) -> any:
-        # logger.debug(f'join start: {self.ip}')
-        # response = self._send_data_global(JOIN, str(id)).decode().split(',')
-        self._send_data_global(JOIN, ip)
-        # # logger.debug(f'join msg : {ip} - {self.ip}')
-        # logger.debug(f'join end: {self.ip}')
-        # return ChordNodeReference(response[1], self.port)
 
     # Method to find the successor of a given id
     def find_successor(self, id: int) -> 'ChordNodeReference':
         response = self._send_data(FIND_SUCCESSOR, str(id)).decode().split(',')
+        logger.debug(f'find_succesor: {response} - {self.ip}')
         return ChordNodeReference(response[1], self.port)
 
     # Method to find the predecessor of a given id
@@ -145,8 +105,7 @@ class ChordNode:
     def __init__(self, ip: str, port: int = 8001, m: int = 160):
         self.id = getShaRepr(ip)
         self.ip = ip
-        # self.port = port
-        self.port = PORT
+        self.port = port
         self.ref = ChordNodeReference(self.ip, self.port)
         self.succ = self.ref  # Initial successor is itself
         self.pred = None  # Initially no predecessor
@@ -176,8 +135,10 @@ class ChordNode:
 
     # Method to find the predecessor of a given id
     def find_pred(self, id: int) -> 'ChordNodeReference':
+        #! Esto hay que arreglarlo. 
         node = self
         while not self._inbetween(id, node.id, node.succ.id):
+            logger.debug(f'find_pred: {node.ip}')
             node = node.closest_preceding_finger(id)
         return node
 
@@ -199,10 +160,9 @@ class ChordNode:
             self.pred = None
       
     # Method to join a Chord network without 'node' reference as an entry point      
-    def join_wr(self):
+    def joinwr(self):
         # logger.debug(f'join_wr: {self.ip}')
-        # self.ref.join(self.ip)
-        self.ref.join(self.ref)
+        self._send_broadcast(JOIN, self.ref)
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
@@ -268,106 +228,37 @@ class ChordNode:
     # Reciev boradcast message 
     def _reciev_broadcast(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.bind(('', int(PORT)))
+        s.bind(('', int(self.port)))
         
         while True:
             msg, _ = s.recvfrom(1024)
-            # print(msg)
             
-            # logger.debug(f'Received broadcast: {self.ip}')
+            logger.debug(f'Received broadcast: {self.ip}')
             
             msg = msg.decode().split(',')
-            
-            # logger.debug(f'recieved broadcast msg: {msg}')
-            
             option = int(msg[0])
             
-            # logger.debug(f'option broadcast msg: {option} - {self.ip}')
-            # new_node_ip = str(msg[1])
-            
             if option == JOIN:
-                # logger.debug(f'option broadcast msg: == JOIN - {self.ip}')
-            #     self.ref._send_data(JOIN, {self.ref})
-                # response = f'{self.id},{self.ip}'.encode()
-                # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                #     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                #     s.bind((self.ip, self.port))
-                #     conn, addr = s.accept()
-                #     conn.sendall(response)
-                
-                # msg[2] es el ip del nodo
                 if msg[2] == self.ip:
-                    # logger.debug(f'My own broadcast msg: {self.id}')
+                    logger.debug(f'My own broadcast msg: {self.id}')
                     return
                 else:
-                    # self.ref._send_data(JOIN, {self.ref})
-                    try:
-                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                            # logger.debug(f'_send_data: {self.ip}')
-                            s.connect((msg[2], self.port))
-                            s.sendall(f'{JOIN},{self.ref}'.encode('utf-8'))
-                            # logger.debug(f'_send_data end: {self.ip}')
-                            return s.recv(1024)
-                    except Exception as e:
-                        print(f"Error sending data: {e}")
-                        return b''
-                #TODO Enviar respuesta
+                    new_node_ref = ChordNodeReference(msg[2])
+                    new_node_ref._send_data(JOIN, {self.ref})
+                    # try:
+                    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    #         # logger.debug(f'_send_data: {self.ip}')
+                    #         s.connect((msg[2], self.port))
+                    #         s.sendall(f'{JOIN},{self.ref}'.encode('utf-8'))
+                    #         # logger.debug(f'_send_data end: {self.ip}')
+                    #         return s.recv(1024)
+                    # except Exception as e:
+                    #     print(f"Error sending data: {e}")
+                    #     return b''
 
-    # # Start server method to handle incoming requests
-    # def start_server(self):
-    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #         s.bind((self.ip, self.port))
-    #         s.listen(10)
-
-    #         while True:
-    #             conn, addr = s.accept()
-    #             print(f'new connection from {addr}')
-
-    #             data = conn.recv(1024).decode().split(',')
-
-    #             data_resp = None
-    #             option = int(data[0])
-
-    #             if option == FIND_SUCCESSOR:
-    #                 id = int(data[1])
-    #                 data_resp = self.find_succ(id)
-    #             elif option == FIND_PREDECESSOR:
-    #                 id = int(data[1])
-    #                 data_resp = self.find_pred(id)
-    #             elif option == GET_SUCCESSOR:
-    #                 data_resp = self.succ if self.succ else self.ref
-    #             elif option == GET_PREDECESSOR:
-    #                 data_resp = self.pred if self.pred else self.ref
-    #             elif option == NOTIFY:
-    #                 id = int(data[1])
-    #                 ip = data[2]
-    #                 self.notify(ChordNodeReference(ip, self.port))
-    #             elif option == CHECK_PREDECESSOR:
-    #                 pass
-    #             elif option == CLOSEST_PRECEDING_FINGER:
-    #                 id = int(data[1])
-    #                 data_resp = self.closest_preceding_finger(id)
-    #             elif option == STORE_KEY:
-    #                 key, value = data[1], data[2]
-    #                 self.data[key] = value
-    #             elif option == RETRIEVE_KEY:
-    #                 key = data[1]
-    #                 data_resp = self.data.get(key, '')
-
-    #             if data_resp:
-    #                 response = f'{data_resp.id},{data_resp.ip}'.encode()
-    #                 conn.sendall(response)
-    #             conn.close()      
-    
-
-# if __name__ == "__main__":
-#     ip = socket.gethostbyname(socket.gethostname())
-#     node = ChordNode(ip)
-
-#     if len(sys.argv) >= 2:
-#         other_ip = sys.argv[1]
-#         node.join(ChordNodeReference(other_ip, node.port))
-    
-#     while True:
-#         pass
+    # Internal method to send data to all nodes
+    def _send_broadcast(self, op: int, data: str = None) -> bytes:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.sendto(f'{op}, {data}'.encode(), (str(socket.INADDR_BROADCAST), self.port))
+            s.close()
