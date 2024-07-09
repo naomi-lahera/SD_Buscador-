@@ -1,4 +1,4 @@
-from node.chord.chord import ChordNode, ChordNodeReference
+from node.chord.chord_profe import ChordNode, ChordNodeReference
 import threading
 import socket
 from logic.core.doc import document
@@ -23,8 +23,8 @@ CHECK_PREDECESSOR = 6
 CLOSEST_PRECEDING_FINGER = 7
 STORE_KEY = 8
 RETRIEVE_KEY = 9
-SEARCH = 10
-JOIN = 11
+JOIN = 10
+SEARCH = 11
 
 class Node(ChordNode):    
     def __init__(self, ip: str, port: int = 8001, m: int = 160):
