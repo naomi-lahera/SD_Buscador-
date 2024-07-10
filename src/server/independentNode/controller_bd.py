@@ -5,7 +5,7 @@ from gensim.corpora import Dictionary
 from src.server.logic.build.preprocessing_data.preprocess import prepro
 import json
 
-def read_or_create_joblib( objeto_predeterminado=Dictionary()):
+def read_or_create_joblib():
     """
     Intenta leer un archivo .joblib. Si no existe, crea uno con el objeto_predeterminado.
     :param nombre_archivo: Nombre del archivo .joblib a leer o crear.
@@ -18,15 +18,18 @@ def read_or_create_joblib( objeto_predeterminado=Dictionary()):
         return load("dictionary.joblib")
     else:
         # El archivo no existe, crear uno nuevo con el objeto predeterminado
-        dump(objeto_predeterminado, "dictionary.joblib")
+        dump(Dictionary(), "dictionary.joblib")
         print("EL joblib fue creado correctamente")
-        return objeto_predeterminado
+        return Dictionary()
 
 class DocumentoController:
     dictionary:Dictionary = read_or_create_joblib()
-    
+    print(dictionary)
+    print(dictionary)
+    print(dictionary)
+    print(dictionary)
     def __init__(self):
-        pass
+        print()
         
     def connect(self):
         return sqlite3.connect("database.db")
@@ -52,6 +55,10 @@ class DocumentoController:
         ''', (texto_documento, tf_json))
         conexion.commit()
         conexion.close()
+        dump(DocumentoController.dictionary, 'dictionary.joblib')
+
+        print("Diccionario actualizado y guardado.")
+    
 
     def get_documents(self):
         conexion = self.connect()
@@ -112,6 +119,9 @@ class DocumentoController:
         conexion.close()
         
         DocumentoController.dictionary.add_documents(tokens_texto_documento)
+        dump(DocumentoController.dictionary, 'dictionary.joblib')
+
+        print("Diccionario actualizado y guardado.")
     
     def delete_document(self, id):
         conexion = self.connect()
@@ -131,7 +141,10 @@ class DocumentoController:
         cursor.execute('DELETE FROM documentos WHERE id = ?', (id,))
         conexion.commit()
         conexion.close()
+        dump(DocumentoController.dictionary, 'dictionary.joblib')
 
+        print("Diccionario actualizado y guardado.")
+    
         
 
     

@@ -28,14 +28,29 @@ class Nodo():
 
         
         print("-----------------------------------")
-        print(corpus)
+        print(dictionary)
         print("-----------------------------------")
         model = TfidfModel(corpus)  # fit model
         
         # Tokenizar y convertir la consulta a BoW
         prep_query = prepro.tokenize_corpus([query])[0]
-        query_bow = dictionary.doc2bow(prep_query)
+        query_bow, missings = dictionary.doc2bow(prep_query,return_missing=True)
+        
+        # Inicializa un contador para los términos faltantes
+        missing_count = {}
+
+        # Itera sobre el BoW para identificar y contar los términos faltantes
+        print(dictionary.token2id)
+        for term_id, freq in missings.items():
+            if term_id not in dictionary.token2id:
+                missing_count[term_id] = freq
+
+        # Agrega los términos faltantes al BoW con un recuento de 0
+        for term_id, freq in missing_count.items():
+            query_bow.append((term_id, freq))
+            
         # Calcular el TF-IDF para la consulta en relación con cada documento
+        print(query_bow)
         query_tfidf = model[query_bow]
         
         # Crear un índice de similitud a partir del corpus TF-IDF
@@ -91,5 +106,5 @@ nodo = Nodo()
 # print("----------------------------------")
 
 # nodo = Nodo()
-# print(nodo.retrieval("the big dream now"))  
-print(nodo.retrieval("Hi Leo leo"))  
+print(nodo.retrieval("honolulu Leo"))  
+# print(nodo.retrieval("I believe in the dream of all of us"))  
