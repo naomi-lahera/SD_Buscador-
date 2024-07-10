@@ -55,9 +55,7 @@ class grocer_vectorial_model_joblib(grocer):
         # print('tfidf_object : ', type(tfidf_object))
         docs_ = grocer_vectorial_model_joblib.load_file('./data/joblib', 'documents')
         # print('documents : ', type(docs_))
-        
         reduction_model = grocer_vectorial_model_joblib.load_file('./data/joblib', 'reduction_model')
         # print('loaded data...')
-        #docs = [document(doc) for doc in docs_]
-            
+        #docs = [document(doc) for doc in docs_]           
         return vectorial_model.retrieve_documents(tfidf_object, reduction_model, docs_, dictionary, query)
