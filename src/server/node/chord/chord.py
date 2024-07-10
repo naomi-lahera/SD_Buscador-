@@ -3,6 +3,14 @@ import threading
 import sys
 import time
 import logging
+import hashlib
+import logging
+
+# Configurar el nivel de log
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
+
+logger = logging.getLogger(__name__)
 
 # Operation codes
 FIND_SUCCESSOR = 1
@@ -19,10 +27,34 @@ logging.basicConfig(level=logging.DEBUG,
 
 logger = logging.getLogger(__name__)
 
+# # Function to hash a string using SHA-1 and return its integer representation
+# def getShaRepr(data: str):
+#     return int(hashlib.sha1(data.encode()).hexdigest(), 16)
+
+def getShaRepr(data: str, max_value: int = 16):
+    # Genera el hash SHA-1 y obtén su representación en hexadecimal
+    hash_hex = hashlib.sha1(data.encode()).hexdigest()
+    
+    # Convierte el hash hexadecimal a un entero
+    hash_int = int(hash_hex, 16)
+    
+    # Define un arreglo o lista con los valores del 0 al 16
+    values = list(range(max_value + 1))
+    
+    # Usa el hash como índice para seleccionar un valor del arreglo
+    # Asegúrate de que el índice esté dentro del rango válido
+    index = hash_int % len(values)
+    
+    # Devuelve el valor seleccionado
+    return values[index]
 
 class ChordNodeReference:
     def __init__(self, id: int, ip: str, port: int = 8001):
-        self.id = id
+        # self.id = id
+        # self.ip = ip
+        # self.port = port
+        
+        self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
 
@@ -66,16 +98,22 @@ class ChordNodeReference:
 
 
 class ChordNode:
-    def __init__(self, id: int, ip: str, port: int = 8001, m: int = 8):
-        self.id = id
+    def __init__(self, id: int, ip: str, port: int = 8001, m: int = 4):
+        # self.id = id
+        self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
         self.ref = ChordNodeReference(self.id, self.ip, self.port)
         self.succ = None
         self.pred = None
-        self.m = m
+        self.m = m # Number of bits in the hash/key spac
+        
+        self.finger = [self.ref] * self.m  # Finger table
+        self.next = 0  # Finger table index to fix next
+        
         threading.Thread(target=self.stabilize, daemon=True).start()
         threading.Thread(target=self.start_server, daemon=True).start()
+        threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
         
     # Helper method to check if a value is in the range (start, end]
     def _inbetween(self, k: int, start: int, end: int) -> bool:
@@ -83,45 +121,68 @@ class ChordNode:
             return start < k <= end
         else:  # The interval wraps around 0
             return start < k or k <= end
+        
+    # Method to find the successor of a given id
+    def find_succ(self, id: int) -> 'ChordNodeReference':
+        node = self.find_pred(id)  # Find predecessor of id
+        try: 
+            return node.successor
+        except:
+            return self.ref # Return successor of that node
+
+    # Method to find the predecessor of a given id
+    def find_pred(self, id: int) -> 'ChordNodeReference':
+        # logger.debug(f'Entro a find_pred {self.id}')
+        node = self
+        try:
+            while not self._inbetween(id, node.id, node.succ.id):
+                node = node.closest_preceding_finger(id)
+        except:
+            logger.debug(f'isinstance: {isinstance(node, ChordNodeReference)}')
+            return node if isinstance(node, ChordNodeReference) else self.ref
+
+    # Method to find the closest preceding finger of a given id
+    def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
+        for i in range(self.m - 1, -1, -1):
+            if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
+                return self.finger[i]
+        return self.ref
 
     # def find_succ(self, id: int) -> 'ChordNodeReference':
-    #     node = self.find_pred(id)
-    #     logger.debug(f'predecesor de {id} es {node.ip}')
-    #     if node.id == self.id and not self.succ:
-    #         logger.debug(f'sucesor de {id} es {node.ip}')
+    #     if not self.pred: # Existe unúnico nodo en el anillo
     #         return self.ref
-    #     return node.successor
-    
-    def find_succ(self, id: int) -> 'ChordNodeReference':
-        if not self.pred: # Existe unúnico nodo en el anillo
-            return self.ref
         
-        if self.id < id: # Mi sucesor es mejor candidato a sucesor que yo
-            if self.succ.id > self.id: # # Mi sucesor es mejor candidato a sucesor que yo
-                return self.succ.find_succ(id)
-            else:
-                return self.succ # El nodo esta entre yo y mi sucesor. El sucesor el mi sucesor
-        else: # Soy candidatoa  sucesor
-            if self.pred.id < self.id: # Verificacion de que soy el menor de los mayores
-                if self.pred.id > id: # Mi predecesor es mejor candidato a sucesor que yo
-                    return self.pred.find_succ(id)
-                else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
-                    return self.ref
-            else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
-                return self.ref
+    #     if self.id < id: # Mi sucesor es mejor candidato a sucesor que yo
+    #         if self.succ.id > self.id: # # Mi sucesor es mejor candidato a sucesor que yo
+    #             return self.succ.find_succ(id)
+    #         else:
+    #             return self.succ # El nodo esta entre yo y mi sucesor. El sucesor el mi sucesor
+    #     else: # Soy candidatoa  sucesor
+    #         if self.pred.id < self.id: # Verificacion de que soy el menor de los mayores
+    #             if self.pred.id > id: # Mi predecesor es mejor candidato a sucesor que yo
+    #                 return self.pred.find_succ(id)
+    #             else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
+    #                 return self.ref
+    #         else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
+    #             return self.ref
 
-    def find_pred(self, id: int) -> 'ChordNodeReference':
-        logger.debug(f'find pred de {id}')
-        if not self.succ: # or self.succ.id == self.id:
-            logger.debug(f'find pred de {id}. Hay solo un nodo, yo {self.ip} soy el predecesor')
-            return self.ref
-        if self._inbetween(id, self.id, self.succ.id):
-        #if id >= self.id and id < self.succ.id: # or self.succ.id < self.id
-            logger.debug(f'El nodo esta entre mi sucesor y yo. Yo soy su predecesor')
-            return self.ref
-        logger.debug(f'El sucesor de nodo esta lejos de mi. Mi sucesor {self.succ.ip} buscara el sucesor de {id}')
-        return self.succ.find_pred(id) if id > self.id else self.pred.find_pred()
-
+    # def find_pred(self, id: int) -> 'ChordNodeReference':
+    #     logger.debug(f'find pred de {id}')
+    #     if not self.succ: # or self.succ.id == self.id:
+    #         logger.debug(f'find pred de {id}. Hay solo un nodo, yo {self.ip} soy el predecesor')
+    #         return self.ref
+    #     if self._inbetween(id, self.id, self.succ.id):
+    #     #if id >= self.id and id < self.succ.id: # or self.succ.id < self.id
+    #         logger.debug(f'El nodo esta entre mi sucesor y yo. Yo soy su predecesor')
+    #         return self.ref
+    #     logger.debug(f'El sucesor de nodo esta lejos de mi. Mi sucesor {self.succ.ip} buscara el sucesor de {id}')
+    #     return self.succ.find_pred(id) if id > self.id else self.pred.find_pred()
+    
+    # def find_pred(self, id: int) -> 'ChordNodeReference':
+    #     # if not self.pred:
+    #     #     return self.ref
+    #     pass
+        
     def join(self, node: 'ChordNodeReference'):
         """Join a Chord network using 'node' as an entry point."""
         self.pred = None
@@ -140,7 +201,7 @@ class ChordNode:
                 self.succ.notify(self.id)
             if not self.succ and self.pred:
                 self.succ = self.pred
-            print(f"successor : {self.succ} predecessor {self.pred}")
+            print(f"node : {self.id} \n successor : {self.succ} predecessor {self.pred}")
             time.sleep(10)
             
 
@@ -152,10 +213,24 @@ class ChordNode:
     
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
-        if node.id == self.id:
-            pass
+        # if node.id == self.id:
+        #     pass
         if not self.pred or self._inbetween(node.id, self.pred.id, self.id):
             self.pred = node
+            
+    # Fix fingers method to periodically update the finger table
+    def fix_fingers(self):
+        while True:
+            try:
+                for node_index in range(len(self.finger)):
+                    self.finger[node_index] = self.find_succ((self.id + 2**node_index) % 2**self.m)
+            except Exception as e:
+                print(f"Error in fix_fingers: {e}")
+                
+            # for node in self.finger:
+            #     logger.debug(node)
+                
+            time.sleep(10)
 
     def start_server(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -168,11 +243,11 @@ class ChordNode:
                 conn, addr = s.accept()
                 print(f'new connection from {addr}' )
                 data = conn.recv(1024).decode().split(',')
-                logger.debug(f'{self.ip} : datos recibidos de {addr}')
+                # logger.debug(f'{self.ip} : datos recibidos de {addr}')
 
                 data_resp = None
                 option = int(data[0])
-                logger.debug(f'Opción: {option}')
+                # logger.debug(f'Opción: {option}')
 
                 if option == FIND_SUCCESSOR:
                     id = int(data[1])
@@ -199,7 +274,6 @@ class ChordNode:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()
                     conn.sendall(response)
                 conn.close()
-
 
 if __name__ == "__main__":
     other_node = None
