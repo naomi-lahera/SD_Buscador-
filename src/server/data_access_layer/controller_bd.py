@@ -24,10 +24,6 @@ def read_or_create_joblib():
 
 class DocumentoController:
     dictionary:Dictionary = read_or_create_joblib()
-    print(dictionary)
-    print(dictionary)
-    print(dictionary)
-    print(dictionary)
     def __init__(self):
         print()
         

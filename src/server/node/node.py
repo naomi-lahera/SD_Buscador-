@@ -3,6 +3,12 @@ import threading
 import socket
 from logic.core.doc import document
 from typing import List
+import os
+import sqlite3
+from joblib import load, dump
+from src.server.data_access_layer.controller_bd import DocumentoController
+from src.server.logic.models.retrieval_vectorial import Retrieval_Vectorial
+
 # from data_access_layer.grocer_tfidf_joblib import grocer_vectorial_model_joblib
 
 import logging
@@ -26,14 +32,37 @@ RETRIEVE_KEY = 9
 JOIN = 10
 SEARCH = 11
 
+def read_or_create_db():
+    
+    if os.path.exists('database.db'):
+        "La base de datos ya existe"
+        return 
+    else:
+        conexion = sqlite3.connect('database.db')
+    
+        cursor = conexion.cursor()
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS documentos (
+        	id INTEGER PRIMARY KEY,
+        	texto_documento TEXT NOT NULL,
+        	tf TEXT
+        );
+        ''')
+        conexion.commit()
+        conexion.close()
+        print("La base de datos se creó correctamente")    
+
 class Node(ChordNode):    
-    def __init__(self, ip: str, port: int = 8001, m: int = 160):
+    def __init__(self, ip: str, port: int = 8001, m: int = 160,controller = DocumentoController(),model = Retrieval_Vectorial()):
+        read_or_create_db()
         super().__init__(ip, port, m)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        self.controller = controller
+        self.model = model    
     
     def search(self, query) -> List[document]:
         # return grocer_vectorial_model_joblib.get_docs_query(query)[:5]
-        pass
+        self.model.retrieval(query,self.controller)
     
     # Start server method to handle incoming requests
     def start_server(self):
