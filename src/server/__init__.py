@@ -2,10 +2,12 @@ import socket
 from node.node import Node
 import sys
 from node.chord.chord import ChordNodeReference
+from logic.models.retrieval_vectorial import Retrieval_Vectorial
+from data_access_layer.controller_bd import DocumentoController
 
 if __name__ == "__main__":
     ip = socket.gethostbyname(socket.gethostname())
-    node = Node(ip)
+    node = Node(Retrieval_Vectorial(),DocumentoController(),ip)
 
     if len(sys.argv) >= 2:
         if sys.argv[1] == '-e':

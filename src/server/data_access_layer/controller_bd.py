@@ -5,20 +5,21 @@ from gensim.corpora import Dictionary
 from src.server.logic.build.preprocessing_data.preprocess import prepro
 import json
 
-def read_or_create_joblib():
+def read_or_create_joblib(ip):
+    ip = str(ip)
     """
     Intenta leer un archivo .joblib. Si no existe, crea uno con el objeto_predeterminado.
     :param nombre_archivo: Nombre del archivo .joblib a leer o crear.
     :param objeto_predeterminado: Objeto a guardar si el archivo no existe.
     :return: Contenido del archivo .joblib o el objeto_predeterminado.
     """
-    if os.path.exists("dictionary.joblib"):
+    if os.path.exists(f"./../data/nodes_data/{ip}/dictionary.joblib"):
         # El archivo existe, cargar y retornar su contenido
         print("EL joblib ya existe")
-        return load("dictionary.joblib")
+        return load(f"./../data/nodes_data/{ip}/dictionary.joblib")
     else:
         # El archivo no existe, crear uno nuevo con el objeto predeterminado
-        dump(Dictionary(), "dictionary.joblib")
+        dump(Dictionary(), f"./../data/nodes_data/{ip}/dictionary.joblib")
         print("EL joblib fue creado correctamente")
         return Dictionary()
 
@@ -29,7 +30,7 @@ class DocumentoController:
         DocumentoController.dictionary = read_or_create_joblib(ip)
         
     def connect(self):
-        return sqlite3.connect("database.db")
+        return sqlite3.connect(f"./../data/nodes_data/{self.ip}/dictionary.joblib")
 
     def create_document(self, texto_documento):
         tokens_documento = prepro.tokenize_corpus([texto_documento])
@@ -50,7 +51,7 @@ class DocumentoController:
         ''', (texto_documento, tf_json))
         conexion.commit()
         conexion.close()
-        dump(DocumentoController.dictionary, 'dictionary.joblib')
+        dump(DocumentoController.dictionary, "./../data/nodes_data/dictionary.joblib")
 
         print("Diccionario actualizado y guardado.")  
 
