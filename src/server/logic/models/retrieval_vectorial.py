@@ -1,9 +1,9 @@
 from gensim.corpora import Dictionary
 from gensim.models import TfidfModel
-from src.server.logic.build.preprocessing_data.preprocess import prepro
+from logic.build.preprocessing_data.preprocess import prepro
 from gensim.similarities import MatrixSimilarity
 from typing import List
-from src.server.data_access_layer.controller_bd import DocumentoController
+from data_access_layer.controller_bd import DocumentoController
 
 class Retrieval_Vectorial():
     def __init__():
