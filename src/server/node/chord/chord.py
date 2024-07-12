@@ -128,7 +128,6 @@ class ChordNode:
         
     # Internal method to send data to all nodes
     def _send_broadcast(self, op: int, data: str = None) -> bytes:
-            # logger.debug(f'Sending boradcast: {self.ip}')
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), self.port))
@@ -220,13 +219,6 @@ class ChordNode:
                 self.succ = self.pred
             print(f"node : {self.id} \n successor : {self.succ} predecessor {self.pred}")
             time.sleep(10)
-            
-
-    # def notify(self, node: 'ChordNodeReference'):
-    #     """Exterior call to stabilize network."""
-    #     ## Hint: Missing extra condition
-    #     if not self.pred:
-    #         self.pred = node
     
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
@@ -264,7 +256,6 @@ class ChordNode:
             msg = msg.decode().split(',')
             logger.debug(f'received broadcast msg: {msg}')
             
-            
             try:
                 option = int(msg[0])
                 
@@ -278,63 +269,63 @@ class ChordNode:
                 print(f"Error in _receiver_boradcast: {e}")
                 
 
-    def start_server(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            print(self.ip, self.port)
-            s.bind((self.ip, self.port))
-            s.listen(10)
+    # def start_server(self):
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    #         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #         print(self.ip, self.port)
+    #         s.bind((self.ip, self.port))
+    #         s.listen(10)
 
-            while True:
-                conn, addr = s.accept()
-                print(f'new connection from {addr}' )
-                data = conn.recv(1024).decode().split(',')
-                # logger.debug(f'{self.ip} : datos recibidos de {addr}')
+    #         while True:
+    #             conn, addr = s.accept()
+    #             print(f'new connection from {addr}' )
+    #             data = conn.recv(1024).decode().split(',')
+    #             # logger.debug(f'{self.ip} : datos recibidos de {addr}')
 
-                data_resp = None
-                option = int(data[0])
-                # logger.debug(f'Opción: {option}')
+    #             data_resp = None
+    #             option = int(data[0])
+    #             # logger.debug(f'Opción: {option}')
 
-                if option == FIND_SUCCESSOR:
-                    id = int(data[1])
-                    data_resp = self.find_succ(id)
-                elif option == FIND_PREDECESSOR:
-                    id = int(data[1])
-                    data_resp = self.find_pred(id)
-                elif option == GET_SUCCESSOR:
-                    data_resp = self.succ if self.succ else self.ref
-                elif option == GET_PREDECESSOR:
-                    data_resp = self.pred if self.pred else self.ref
-                elif option == NOTIFY:
-                    ip = data[2]
-                    self.notify(ChordNodeReference(ip, self.port))
-                elif option == INSERT_NODE:
-                    id = int(data[1])
-                    ip = data[2]
-                    self.insert_node(ChordNodeReference(ip, self.port))
-                elif option == REMOVE_NODE:
-                    id = int(data[1])
-                    self.remove_node(id)
+    #             if option == FIND_SUCCESSOR:
+    #                 id = int(data[1])
+    #                 data_resp = self.find_succ(id)
+    #             elif option == FIND_PREDECESSOR:
+    #                 id = int(data[1])
+    #                 data_resp = self.find_pred(id)
+    #             elif option == GET_SUCCESSOR:
+    #                 data_resp = self.succ if self.succ else self.ref
+    #             elif option == GET_PREDECESSOR:
+    #                 data_resp = self.pred if self.pred else self.ref
+    #             elif option == NOTIFY:
+    #                 ip = data[2]
+    #                 self.notify(ChordNodeReference(ip, self.port))
+    #             elif option == INSERT_NODE:
+    #                 id = int(data[1])
+    #                 ip = data[2]
+    #                 self.insert_node(ChordNodeReference(ip, self.port))
+    #             elif option == REMOVE_NODE:
+    #                 id = int(data[1])
+    #                 self.remove_node(id)
                     
-                elif option == JOIN and not self.succ:
-                    ip = data[2]
-                    self.join(ChordNodeReference(ip, self.port))
+    #             elif option == JOIN and not self.succ:
+    #                 ip = data[2]
+    #                 self.join(ChordNodeReference(ip, self.port))
 
-                if data_resp:
-                    response = f'{data_resp.id},{data_resp.ip}'.encode()
-                    conn.sendall(response)
-                conn.close()
+    #             if data_resp:
+    #                 response = f'{data_resp.id},{data_resp.ip}'.encode()
+    #                 conn.sendall(response)
+    #             conn.close()
 
-if __name__ == "__main__":
-    other_node = None
-    # if len(sys.argv) <= 1:
-    #     raise SystemError("node id is required")
-    # id = int(sys.argv[1])
-    ip = socket.gethostbyname(socket.gethostname())
-    t = ChordNode(ip)
+# if __name__ == "__main__":
+#     other_node = None
+#     # if len(sys.argv) <= 1:
+#     #     raise SystemError("node id is required")
+#     # id = int(sys.argv[1])
+#     ip = socket.gethostbyname(socket.gethostname())
+#     t = ChordNode(ip)
     
-    if len(sys.argv) >= 2 and sys.argv[1] == '-n': # -n = new node
-        t.joinwr()
+#     if len(sys.argv) >= 2 and sys.argv[1] == '-n': # -n = new node
+#         t.joinwr()
         
-    while True:
-        pass
+#     while True:
+#         pass
