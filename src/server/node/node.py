@@ -1,4 +1,4 @@
-from node.chord.chord_profe import ChordNode, ChordNodeReference
+from node.chord.chord import ChordNode, ChordNodeReference
 import threading
 import socket
 from logic.core.doc import document
