@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-
-class model_interface:
-    @staticmethod
+from data_access_layer.controller_interface import BaseController
+class ModelSearchInterface(ABC):
+    """
+    Interfaz para clases que realizan búsquedas basadas en modelos.
+    """
     @abstractmethod
-    def retrieve_documents():
+    def retrieve(self, query: str, controller: BaseController):
         pass

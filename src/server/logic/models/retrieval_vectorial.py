@@ -3,12 +3,12 @@ from gensim.models import TfidfModel
 from logic.build.preprocessing_data.preprocess import prepro
 from gensim.similarities import MatrixSimilarity
 from typing import List
-from data_access_layer.controller_bd import DocumentoController
-
-class Retrieval_Vectorial():
-    def __init__():
+from data_access_layer.controller_interface import BaseController
+from logic.models.model_interface import ModelSearchInterface
+class Retrieval_Vectorial(ModelSearchInterface):
+    def __init__(self):
         pass
-    def retrieval(self, query,controller:DocumentoController):
+    def retrieve(self, query,controller:BaseController):
         id_tf_documents = controller.get_documents_for_query()
         
         # Crear un diccionario y corpus para el modelo TF-IDF
@@ -30,7 +30,6 @@ class Retrieval_Vectorial():
         missing_count = {}
 
         # Itera sobre el BoW para identificar y contar los términos faltantes
-        print(dictionary.token2id)
         for term_id, freq in missings.items():
             if term_id not in dictionary.token2id:
                 missing_count[term_id] = freq
@@ -40,7 +39,6 @@ class Retrieval_Vectorial():
             query_bow.append((term_id, freq))
             
         # Calcular el TF-IDF para la consulta en relación con cada documento
-        print(query_bow)
         query_tfidf = model[query_bow]
         
         # Crear un índice de similitud a partir del corpus TF-IDF

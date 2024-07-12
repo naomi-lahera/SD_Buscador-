@@ -4,6 +4,7 @@ from joblib import load, dump
 from gensim.corpora import Dictionary
 from logic.build.preprocessing_data.preprocess import prepro
 import json
+from data_access_layer.controller_interface import BaseController
 
 def read_or_create_joblib(ip):
     ip = str(ip)
@@ -13,24 +14,31 @@ def read_or_create_joblib(ip):
     :param objeto_predeterminado: Objeto a guardar si el archivo no existe.
     :return: Contenido del archivo .joblib o el objeto_predeterminado.
     """
-    if os.path.exists(f"./../data/nodes_data/{ip}/dictionary.joblib"):
+    if not os.path.exists(f"src/server/data/nodes_data/{ip}/"):
+        url = f"src/server/data/nodes_data/{ip}/"
+        print(f"Carpeta creada en: {url}")
+        
+        os.makedirs(f"src/server/data/nodes_data/{ip}/", exist_ok=True)
+       
+    
+    if os.path.exists(f"src/server/data/nodes_data/{ip}/dictionary.joblib"):
         # El archivo existe, cargar y retornar su contenido
         print("EL joblib ya existe")
-        return load(f"./../data/nodes_data/{ip}/dictionary.joblib")
+        return load(f"src/server/data/nodes_data/{ip}/dictionary.joblib")
     else:
         # El archivo no existe, crear uno nuevo con el objeto predeterminado
-        dump(Dictionary(), f"./../data/nodes_data/{ip}/dictionary.joblib")
+        dump(Dictionary(), f"src/server/data/nodes_data/{ip}/dictionary.joblib")
         print("EL joblib fue creado correctamente")
         return Dictionary()
 
-class DocumentoController:
+class DocumentoController(BaseController):
     dictionary:Dictionary
     def __init__(self,ip):
         self.ip = ip
         DocumentoController.dictionary = read_or_create_joblib(ip)
         
     def connect(self):
-        return sqlite3.connect(f"./../data/nodes_data/{self.ip}/dictionary.joblib")
+        return sqlite3.connect(f"src/server/data/nodes_data/{self.ip}/database.db")
 
     def create_document(self, texto_documento):
         tokens_documento = prepro.tokenize_corpus([texto_documento])
@@ -51,7 +59,7 @@ class DocumentoController:
         ''', (texto_documento, tf_json))
         conexion.commit()
         conexion.close()
-        dump(DocumentoController.dictionary, "./../data/nodes_data/dictionary.joblib")
+        dump(DocumentoController.dictionary, f"src/server/data/nodes_data/{self.ip}/dictionary.joblib")
 
         print("Diccionario actualizado y guardado.")  
 
