@@ -1,7 +1,7 @@
 from threading import Thread, Timer
 from queue import Queue
 import hashlib
-from node import ChordNode
+# from node.chord.chord import ChordNode 
 
 class Leader:
     responses_queue = Queue()
@@ -15,7 +15,7 @@ class Leader:
         Leader.port = port
 
     @staticmethod
-    def receive_query_from_client(chord_node:ChordNode, query: str):
+    def receive_query_from_client(chord_node, query: str):
         # Hashear la query
         hashed_query = hashlib.sha256(query.encode()).hexdigest()
         Leader.hash_query = hashed_query
