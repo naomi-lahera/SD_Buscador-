@@ -1,8 +1,8 @@
 import sqlite3
 import os
-from joblib import load,dump
+from joblib import load, dump
 from gensim.corpora import Dictionary
-from src.server.logic.build.preprocessing_data.preprocess import prepro
+from logic.build.preprocessing_data.preprocess import prepro
 import json
 
 def read_or_create_joblib():
