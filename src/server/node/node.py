@@ -5,8 +5,6 @@ from logic.core.doc import document
 from typing import List
 import os
 import sqlite3
-from joblib import load, dump
-from logic.models.retrieval_vectorial import Retrieval_Vectorial
 from logic.models.model_interface import ModelSearchInterface
 
 from data_access_layer.controller_interface import BaseController
@@ -86,7 +84,7 @@ class Node(ChordNode):
         read_or_create_db(ip)
         super().__init__(ip, port, m)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
-        self.controller:BaseController = controller
+        self.controller = controller
         self.model = model    
     
     def add_doc(self,document):
@@ -151,9 +149,9 @@ class Node(ChordNode):
                 elif option == RETRIEVE_KEY:
                     key = data[1]
                     data_resp = self.data.get(key, '')
-                # elif option == SEARCH:
-                #     query = data[1]
-                #     data_resp = self.search(query)
+                elif option == SEARCH:
+                    query = data[1]
+                    data_resp = self.search(query)
                 # elif option == JOIN:
                 #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
                 #     chord_node_ref = ChordNodeReference(data[2])

@@ -6,6 +6,8 @@ import logging
 import hashlib
 import logging
 
+from node.leader import Leader
+
 # Configurar el nivel de log
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
@@ -21,7 +23,15 @@ NOTIFY = 5
 INSERT_NODE = 6
 REMOVE_NODE = 7
 JOIN = 8
-
+ELECTION = 9
+ELECTION_OK = 10
+ELECTION_WINNER = 11
+CHECK_PREDECESSOR = 12
+CLOSEST_PRECEDING_FINGER = 13
+STORE_KEY = 14
+RETRIEVE_KEY = 15
+SEARCH = 16
+REQUEST_BROADCAST_QUERY = 17
 # Configurar el nivel de log
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
@@ -101,7 +111,7 @@ class ChordNodeReference:
         return str(self)
 
 
-class ChordNode:
+class ChordNode():
     def __init__(self, ip: str, port: int = 8001, m: int = 4):
         self.id = getShaRepr(ip)
         self.ip = ip
@@ -258,7 +268,13 @@ class ChordNode:
             
             try:
                 option = int(msg[0])
-                
+                if option == REQUEST_BROADCAST_QUERY:
+                    hashed_query, query = msg[1].split(',', 1)  # Asume que el mensaje recibido tiene la forma: hash,query
+            
+                    # Verifica si el mensaje es una respuesta a nuestra consulta actual
+                    if hasattr(self, None) and self.hash_query == hashed_query:
+                        # Pone la respuesta en la cola de respuestas del Leader
+                        self.responses_queue.put(query)
                 if option == JOIN:
                     if msg[2] == self.ip:
                         logger.debug(f'My own broadcast msg: node-{self.id}')
