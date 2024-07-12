@@ -25,12 +25,17 @@ FIND_PREDECESSOR = 2
 GET_SUCCESSOR = 3
 GET_PREDECESSOR = 4
 NOTIFY = 5
-CHECK_PREDECESSOR = 6
-CLOSEST_PRECEDING_FINGER = 7
-STORE_KEY = 8
-RETRIEVE_KEY = 9
-JOIN = 10
-SEARCH = 11
+INSERT_NODE = 6
+REMOVE_NODE = 7
+JOIN = 8
+ELECTION = 9
+ELECTION_OK = 10
+ELECTION_WINNER = 11
+CHECK_PREDECESSOR = 12
+CLOSEST_PRECEDING_FINGER = 13
+STORE_KEY = 14
+RETRIEVE_KEY = 15
+SEARCH = 16
 
 def read_or_create_db(ip):
     ip = str(ip)
@@ -80,12 +85,13 @@ def read_or_create_db(ip):
         print("La base de datos se creó correctamente")    
 
 class Node(ChordNode):    
-    def __init__(self, model,controller,ip: str, port: int = 8001, m: int = 160):
+    def __init__(self, model, controller, ip: str, port: int = 8001, m: int = 160):
         read_or_create_db(ip)
         super().__init__(ip, port, m)
-        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         self.controller = controller
         self.model = model    
+        
+        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
     
     def search(self, query) -> List[document]:
         self.model.retrieval(query,self.controller)
@@ -116,10 +122,6 @@ class Node(ChordNode):
                     data_resp = self.succ if self.succ else self.ref
                 elif option == GET_PREDECESSOR:
                     data_resp = self.pred if self.pred else self.ref
-                # elif option == NOTIFY:
-                #     id = int(data[1])
-                #     ip = data[2]
-                #     self.notify(ChordNodeReference(ip, self.port))
                 elif option == NOTIFY:
                     ip = data[2]
                     self.notify(ChordNodeReference(ip, self.port))
@@ -134,17 +136,6 @@ class Node(ChordNode):
                 elif option == RETRIEVE_KEY:
                     key = data[1]
                     data_resp = self.data.get(key, '')
-                # elif option == SEARCH:
-                #     query = data[1]
-                #     data_resp = self.search(query)
-                # elif option == JOIN:
-                #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-                #     chord_node_ref = ChordNodeReference(data[2])
-                #     if chord_node_ref:
-                #         logger.debug(f'join to the chord network - {self.ip}')
-                #         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                #         logger.debug(f'node_reference - {chord_node_ref.ip}')
-                #         self.join(chord_node_ref)
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))
