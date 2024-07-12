@@ -32,17 +32,44 @@ RETRIEVE_KEY = 9
 JOIN = 10
 SEARCH = 11
 
-def read_or_create_db():
+def read_or_create_db(ip):
+    ip = str(ip)
+    folder_path = './../data/nodes_data/'
+    full_path = os.path.join(folder_path, ip)
     
-    if os.path.exists('database.db'):
-        "La base de datos ya existe"
+    if os.path.exists(full_path):
+        "El nodo ya existia"
         return 
+    
     else:
-        conexion = sqlite3.connect('database.db')
+        os.makedirs(full_path)
+        print(f"Carpeta creada en: {full_path}")
+        try:
+            conexion = sqlite3.connect(os.path.join(full_path, 'database.db'))
+            print("Conexión a la base de datos exitosa")
+        except Exception as e:
+            print(f"Error al conectar a la base de datos: {e}")
+            return
     
         cursor = conexion.cursor()
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS documentos (
+        	id INTEGER PRIMARY KEY,
+        	texto_documento TEXT NOT NULL,
+        	tf TEXT
+        );
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS replica_succ (
+        	id INTEGER PRIMARY KEY,
+        	texto_documento TEXT NOT NULL,
+        	tf TEXT
+        );
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS replica_pred (
         	id INTEGER PRIMARY KEY,
         	texto_documento TEXT NOT NULL,
         	tf TEXT
@@ -53,8 +80,8 @@ def read_or_create_db():
         print("La base de datos se creó correctamente")    
 
 class Node(ChordNode):    
-    def __init__(self, ip: str, port: int = 8001, m: int = 160,controller = DocumentoController(),model = Retrieval_Vectorial()):
-        read_or_create_db()
+    def __init__(self, model,controller,ip: str, port: int = 8001, m: int = 160):
+        read_or_create_db(ip)
         super().__init__(ip, port, m)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         self.controller = controller

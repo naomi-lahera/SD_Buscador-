@@ -23,14 +23,13 @@ def read_or_create_joblib():
         return Dictionary()
 
 class DocumentoController:
-    dictionary:Dictionary = read_or_create_joblib()
-    def __init__(self):
-        print()
+    dictionary:Dictionary
+    def __init__(self,ip):
+        self.ip = ip
+        DocumentoController.dictionary = read_or_create_joblib(ip)
         
     def connect(self):
         return sqlite3.connect("database.db")
-
-    import json
 
     def create_document(self, texto_documento):
         tokens_documento = prepro.tokenize_corpus([texto_documento])
@@ -53,8 +52,7 @@ class DocumentoController:
         conexion.close()
         dump(DocumentoController.dictionary, 'dictionary.joblib')
 
-        print("Diccionario actualizado y guardado.")
-    
+        print("Diccionario actualizado y guardado.")  
 
     def get_documents(self):
         conexion = self.connect()
@@ -66,6 +64,7 @@ class DocumentoController:
         # print({ id2tok[k]:v for k,v in DocumentoController.dictionary.cfs.items()})
         
         return documentos
+    
     def get_document_by_id(self, _id):
         conexion = self.connect()
         cursor = conexion.cursor()
