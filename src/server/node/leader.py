@@ -52,7 +52,7 @@ class Leader:
     def __send_answer_to_client(hashed_query,ip_client):
         with Leader.query_states_lock:
             state = Leader.query_states[hashed_query]
-            controller = DocumentoController(f"leader/{ip_client}/")
+            controller = DocumentoController(f"leader/{ip_client}")
             model = Retrieval_Vectorial()
             [controller.create_document(doc) for _, doc in state["responses_list"] if _ == hashed_query]
             documents = model.retrieve(state["query"], controller, 10)

@@ -1,7 +1,7 @@
 from node.chord.chord import ChordNode, ChordNodeReference
 import threading
 import socket
-from logic.core.doc import document
+# from logic.core.doc import document
 from typing import List
 import os
 import sqlite3
@@ -103,7 +103,7 @@ class Node(ChordNode):
     def get_doc_by_id(self,id):
         return self.controller.get_document_by_id(id)
     
-    def search(self, query) -> List[document]:
+    def search(self, query) -> List:
         return self.model.retrieve(query,self.controller)
     
     # Start server method to handle incoming requests
