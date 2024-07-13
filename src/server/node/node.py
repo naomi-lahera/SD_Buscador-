@@ -5,11 +5,8 @@ from logic.core.doc import document
 from typing import List
 import os
 import sqlite3
-from joblib import load, dump
-from data_access_layer.controller_bd import DocumentoController
-from logic.models.retrieval_vectorial import Retrieval_Vectorial
-
-# from data_access_layer.grocer_tfidf_joblib import grocer_vectorial_model_joblib
+from logic.models.model_interface import ModelSearchInterface
+from data_access_layer.controller_interface import BaseController
 
 import logging
 
@@ -39,16 +36,16 @@ SEARCH = 16
 
 def read_or_create_db(ip):
     ip = str(ip)
-    folder_path = './../data/nodes_data/'
+    folder_path = 'src/server/data/nodes_data/'
     full_path = os.path.join(folder_path, ip)
     
-    if os.path.exists(full_path):
-        "El nodo ya existia"
+    if os.path.exists(f"{full_path}/database.db"):
+        print("El nodo ya existia")
         return 
     
     else:
-        os.makedirs(full_path)
-        print(f"Carpeta creada en: {full_path}")
+        # os.makedirs(full_path)
+        # print(f"Carpeta creada en: {full_path}")
         try:
             conexion = sqlite3.connect(os.path.join(full_path, 'database.db'))
             print("Conexión a la base de datos exitosa")
@@ -85,16 +82,33 @@ def read_or_create_db(ip):
         print("La base de datos se creó correctamente")    
 
 class Node(ChordNode):    
-    def __init__(self, model, controller, ip: str, port: int = 8001, m: int = 160):
+    def __init__(self, model:ModelSearchInterface, controller:BaseController, ip: str):
         read_or_create_db(ip)
-        super().__init__(ip, port, m)
-        self.controller = controller
-        self.model = model    
         
+        super().__init__(ip)
+        self.controller:BaseController = controller
+        self.model = model    
+
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        
+    
+    def add_doc(self,document):
+        return self.controller.create_document(document)
+    
+    def upd_doc(self,id,text):
+        return self.controller.update_document(id,text)
+    
+    def del_doc(self,id):
+        return self.controller.delete_document(id)
+    
+    def get_docs(self):
+        return self.controller.get_documents()
+    
+    def get_doc_by_id(self,id):
+        return self.controller.get_document_by_id(id)
     
     def search(self, query) -> List[document]:
-        self.model.retrieval(query,self.controller)
+        return self.model.retrieve(query,self.controller)
     
     # Start server method to handle incoming requests
     def start_server(self):

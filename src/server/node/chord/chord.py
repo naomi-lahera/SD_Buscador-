@@ -48,7 +48,7 @@ def getShaRepr(data: str, max_value: int = 16):
     hash_int = int(hash_hex, 16)
     values = list(range(max_value + 1))
     index = hash_int % len(values)
-    
+
     return values[index]
 
 # Class to reference a Chord node
@@ -93,7 +93,7 @@ class ChordNodeReference:
 
     # Method to notify the current node about another node
     def notify(self, node: 'ChordNodeReference'):
-        logger.debug(f'node {self.id} sending notify to {node}')
+        # logger.debug(f'node {self.id} sending notify to {node}')
         self._send_data(NOTIFY, f'{node.id},{node.ip}')
 
     def __str__(self) -> str:
@@ -112,29 +112,30 @@ class ChordNode:
         self.succ = None
         self.pred = None
         self.m = m # Number of bits in the hash/key spac
-        
+
         self.finger = [self.ref] * self.m  # Finger table
+        # print(f'm : {self.m}')
         self.next = 0  # Finger table index to fix next
-        
+
         self.Leader = None
-        self.mcast_adrr = ip
+        self.mcast_adrr = MCAST_ADRR
         self.InElection = False
         self.ImTheLeader = True
-        
+
         threading.Thread(target=self.stabilize, daemon=True).start()
         threading.Thread(target=self._receiver_broadcast, daemon=True).start()
-        threading.Thread(target=self.mcast_server).start()
-        threading.Thread(target=self.election_loop, daemon=True).start()
-        # threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
-        
-        
+        # threading.Thread(target=self.mcast_server).start()
+        # threading.Thread(target=self.election_loop, daemon=True).start()
+        threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
+
+
     # Helper method to check if a value is in the range (start, end]
     def _inbetween(self, k: int, start: int, end: int) -> bool:
         if start < end:
             return start < k <= end
         else:  # The interval wraps around 0
             return start < k or k <= end
-        
+
     # Internal method to send data to all nodes
     def _send_broadcast(self, op: int, data: str = None) -> bytes:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -142,18 +143,18 @@ class ChordNode:
             s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), self.port))
             s.close()
             logger.debug(f'Broadcast sended')
-            
-    
+
+
     def mcast_call(self, message: str, mcast_addr: str, port: int):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
-        s.sendto(message.encode(), (MCAST_ADRR, MCAST_PORT))
+        s.sendto(message.encode(), (mcast_addr, port))
         s.close()
-        
+
     # # Method to find the successor of a given id
     # def find_succ(self, id: int) -> 'ChordNodeReference':
     #     node = self.find_pred(id)  # Find predecessor of id
-    #     try: 
+    #     try:
     #         return node.successor
     #     except:
     #         return self.ref # Return successor of that node
@@ -169,31 +170,44 @@ class ChordNode:
     #         logger.debug(f'isinstance: {isinstance(node, ChordNodeReference)}')
     #         return node if isinstance(node, ChordNodeReference) else self.ref
 
-    # # Method to find the closest preceding finger of a given id
-    # def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
-    #     for i in range(self.m - 1, -1, -1):
-    #         if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
-    #             return self.finger[i]
-    #     return self.ref
+    # Method to find the closest preceding finger of a given id
+    def closest_succeding_finger(self, id: int) -> 'ChordNodeReference':
+        for i in range(self.m):
+            if self.finger[i] and self._inbetween(id, self.id, self.finger[i].id):
+                return self.finger[i]
+        return self.ref
+    
+     # Method to find the closest preceding finger of a given id
+    def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
+        for i in range(self.m - 1, -1, -1):
+            if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
+                return self.finger[i]
+        return self.ref
 
     def find_succ(self, id: int) -> 'ChordNodeReference':
         if not self.pred: # Existe unúnico nodo en el anillo
             return self.ref
-        
+
+        # logger.debug(f'closest_succeding_finger de {id} : {self.closest_succeding_finger(id)}')
+
         if self.id < id: # Mi sucesor es mejor candidato a sucesor que yo
             if self.succ.id > self.id: # # Mi sucesor es mejor candidato a sucesor que yo
-                return self.succ.find_successor(id)
+                closest_succeding_finger = self.closest_succeding_finger(id)
+                # return self.succ.find_successor(id)
+                return closest_succeding_finger.find_successor(id)
             else:
                 return self.succ # El nodo esta entre yo y mi sucesor. El sucesor el mi sucesor
         else: # Soy candidatoa  sucesor
             if self.pred.id < self.id: # Verificacion de que soy el menor de los mayores
                 if self.pred.id > id: # Mi predecesor es mejor candidato a sucesor que yo
-                    return self.pred.find_successor(id)
+                    closest_preceding_finger = self.closest_preceding_finger(id)
+                    # return self.pred.find_successor(id)
+                    return closest_preceding_finger.find_successor(id)
                 else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
                     return self.ref
             else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
                 return self.ref
-        
+
     def join(self, node: 'ChordNodeReference'):
         """Join a Chord network using 'node' as an entry point."""
         self.pred = None
@@ -201,8 +215,8 @@ class ChordNode:
         self.succ = node.find_successor(self.id)
         if self.succ:
             self.succ.notify(self.ref)
-            
-    # Method to join a Chord network without 'node' reference as an entry point      
+
+    # Method to join a Chord network without 'node' reference as an entry point
     def joinwr(self):
         self._send_broadcast(JOIN, self.ref)
 
@@ -218,12 +232,12 @@ class ChordNode:
                 self.succ = self.pred
             print(f"node : {self.id} \n successor : {self.succ} predecessor {self.pred}")
             time.sleep(10)
-    
+
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
         if not self.pred or self._inbetween(node.id, self.pred.id, self.id):
             self.pred = node
-            
+
     # Fix fingers method to periodically update the finger table
     def fix_fingers(self):
         while True:
@@ -232,30 +246,30 @@ class ChordNode:
                     self.finger[node_index] = self.find_succ((self.id + 2**node_index) % 2**self.m)
             except Exception as e:
                 print(f"Error in fix_fingers: {e}")
-                
-            # for node in self.finger:
-            #     logger.debug(node)
-                
+
+            for index, node in enumerate(self.finger):
+                logger.debug(f'node: {index} succesor: {node}')
+
             time.sleep(10)
-            
-    # Reciev boradcast message 
+
+    # Reciev boradcast message
     def _receiver_broadcast(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.bind(('', int(self.port)))
-        
+
         # logger.debug(f'running _reciev_broadcast running')
-        
+
         while True:
             msg, _ = s.recvfrom(1024)
-            
+
             logger.debug(f'Received broadcast: {self.ip}')
-            
+
             msg = msg.decode().split(',')
             logger.debug(f'received broadcast msg: {msg}')
-            
+
             try:
                 option = int(msg[0])
-                
+
                 if option == JOIN:
                     if msg[2] == self.ip:
                         logger.debug(f'My own broadcast msg: node-{self.id}')
@@ -264,8 +278,8 @@ class ChordNode:
                         new_node_ref._send_data(JOIN, {self.ref})
             except Exception as e:
                 print(f"Error in _receiver_boradcast: {e}")
-                
-    
+
+
     def election_bully(self, id, otherId):
         return int(id.split('.')[-1]) > int(otherId.split('.')[-1])
 
@@ -300,7 +314,7 @@ class ChordNode:
 
             print(f"{counter} waiting")
             time.sleep(1)
-            
+
     def mcast_server(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         membership = socket.inet_aton(self.mcast_adrr) + socket.inet_aton('0.0.0.0')
@@ -315,6 +329,7 @@ class ChordNode:
                 if not msg:
                     continue  # Ignorar mensajes vacíos
 
+                logger.debug(f'multcast msg: {msg}')
                 newId = sender[0]
                 msg = msg.decode("utf-8")
 

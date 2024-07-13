@@ -29,12 +29,12 @@ def process_files_in_folder(folder_path):
         if ext.lower() in ['.pdf', '.docx', '.txt', '.md']:
             print(f"Processing file: {file_path}")
             
-            if ext == ".pdf":
-                text = read_pdf(file_path)
-            elif ext == ".docx":
-                text = read_docx(file_path)
-            elif ext in ['.txt', '.md']:
-                text = read_txt_md(file_path)
+            # if ext == ".pdf":
+            #     text = read_pdf(file_path)
+            # elif ext == ".docx":
+            #     text = read_docx(file_path)
+            # elif ext in ['.txt', '.md']:
+            #     text = read_txt_md(file_path)
             
             text = read_txt_md(file_path)
             
