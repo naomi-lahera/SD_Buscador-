@@ -1,1 +1,0 @@
-Esta matriz captura las probabilidades conjuntas de las co-ocurrencias de visterms v en el vocabulario visual V con cada documento d en un conjunto de documentos D.

@@ -1,1 +1,0 @@
-La representación de la imagen consiste en cuantificar cada imagen en un vector numérico que representa el número de ocurrencias de cada visterm en la imagen. Finalmente, concatenamos estos vectores como filas para formar una matriz documento-visterm (es decir, imagen-visterm) Md,v.

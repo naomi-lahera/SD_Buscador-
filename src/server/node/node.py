@@ -85,7 +85,8 @@ class Node(ChordNode):
         super().__init__(ip, port, m)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         self.controller = controller
-        self.model = model    
+        self.model = model   
+        self.data = {}
     
     def add_doc(self,document):
         return self.controller.create_document(document)
@@ -152,14 +153,14 @@ class Node(ChordNode):
                 elif option == SEARCH:
                     query = data[1]
                     data_resp = self.search(query)
-                # elif option == JOIN:
-                #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-                #     chord_node_ref = ChordNodeReference(data[2])
-                #     if chord_node_ref:
-                #         logger.debug(f'join to the chord network - {self.ip}')
-                #         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                #         logger.debug(f'node_reference - {chord_node_ref.ip}')
-                #         self.join(chord_node_ref)
+                elif option == JOIN:
+                    # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
+                    chord_node_ref = ChordNodeReference(data[2])
+                    if chord_node_ref:
+                        logger.debug(f'join to the chord network - {self.ip}')
+                        # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
+                        logger.debug(f'node_reference - {chord_node_ref.ip}')
+                        self.join(chord_node_ref)
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))

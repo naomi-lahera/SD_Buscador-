@@ -20,6 +20,7 @@ if __name__ == "__main__":
     #             other_ip = sys.argv[2]
     #             node.join(ChordNodeReference(other_ip, node.port))
     print('*****************************************************')
+    print(f"IP: {ip}")
     print(sys.argv)    
     print('*****************************************************')
 
@@ -27,12 +28,12 @@ if __name__ == "__main__":
         node.joinwr()
     
     
-    node.add_doc("Computer Science is the most exciting place")
-    node.add_doc("Animals are beautiful")
-    node.add_doc("The documents of Alexandria were hidden for a long time")
-    print("---------------------------------------------")
-    print(node.search("Hi Nao, i like Science and animals too in any place"))
-    print("---------------------------------------------")
+    # node.add_doc("Computer Science is the most exciting place")
+    # node.add_doc("Animals are beautiful")
+    # node.add_doc("The documents of Alexandria were hidden for a long time")
+    # print("---------------------------------------------")
+    # print(node.search("Hi Nao, i like Science and animals too in any place"))
+    # print("---------------------------------------------")
     
     while True:
         pass

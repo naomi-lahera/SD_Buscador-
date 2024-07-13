@@ -7,5 +7,5 @@ set ARGUMENTOS=%*
 :: Usa %~dp0 para obtener el directorio completo del script actual
 set VOLUMEN_MONTAR=%~dp0
 
-:: Ejecuta el comando docker con los argumentos capturados
-docker run -it --rm -v "%VOLUMEN_MONTAR%:/app" sist-dist:v0 /bin/bash -c "python3 src/server/__init__.py %ARGUMENTOS% && exec bash"
+:: Ejecuta el comando docker con los argumentos capturados y luego fuerza la eliminación del contenedor
+docker run -it --rm -v "%VOLUMEN_MONTAR%:/app" sist-dist:v0 /bin/bash -c "python3 src/server/__init__.py %ARGUMENTOS% && exec bash || true"

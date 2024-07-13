@@ -14,6 +14,8 @@ def read_or_create_joblib(ip):
     :param objeto_predeterminado: Objeto a guardar si el archivo no existe.
     :return: Contenido del archivo .joblib o el objeto_predeterminado.
     """
+ 
+    
     if not os.path.exists(f"src/server/data/nodes_data/{ip}/"):
         url = f"src/server/data/nodes_data/{ip}/"
         print(f"Carpeta creada en: {url}")
@@ -59,7 +61,10 @@ class DocumentoController(BaseController):
         ''', (texto_documento, tf_json))
         conexion.commit()
         conexion.close()
-        dump(DocumentoController.dictionary, f"src/server/data/nodes_data/{self.ip}/dictionary.joblib")
+        if self.leader:
+            dump(DocumentoController.dictionary, f"src/server/data/nodes_data/leader/dictionary.joblib")
+        else:
+            dump(DocumentoController.dictionary, f"src/server/data/nodes_data/{self.ip}/dictionary.joblib")
 
         print("Diccionario actualizado y guardado.")  
 
@@ -149,6 +154,20 @@ class DocumentoController(BaseController):
 
         print("Diccionario actualizado y guardado.")
     
-        
+    def delete_all_documents(self):
+        conexion = self.connect()
+        cursor = conexion.cursor()
+
+        # Eliminar todos los documentos
+        cursor.execute('DELETE FROM documentos')
+
+        # Actualizar el diccionario después de eliminar los documentos
+        DocumentoController.dictionary.clear()
+        dump(DocumentoController.dictionary, 'dictionary.joblib')
+
+        conexion.commit()
+        conexion.close()
+
+        print("Todos los documentos eliminados y diccionario actualizado.")        
 
     

@@ -8,12 +8,12 @@ from logic.models.model_interface import ModelSearchInterface
 class Retrieval_Vectorial(ModelSearchInterface):
     def __init__(self):
         pass
-    def retrieve(self, query,controller:BaseController):
+    def retrieve(self, query, controller: BaseController, no_docs: int = 1):
         id_tf_documents = controller.get_documents_for_query()
-        
+
         # Crear un diccionario y corpus para el modelo TF-IDF
         dictionary = controller.dictionary
-        corpus:List = [bow for _, bow in id_tf_documents]
+        corpus: List = [bow for _, bow in id_tf_documents]
         # Convertir las cadenas a listas de Python
         listas_convertidas = [[eval(item)] for item in corpus]
 
@@ -21,11 +21,11 @@ class Retrieval_Vectorial(ModelSearchInterface):
         corpus = [item for sublist in listas_convertidas for item in sublist]
 
         model = TfidfModel(corpus)  # fit model
-        
+
         # Tokenizar y convertir la consulta a BoW
         prep_query = prepro.tokenize_corpus([query])[0]
-        query_bow, missings = dictionary.doc2bow(prep_query,return_missing=True)
-        
+        query_bow, missings = dictionary.doc2bow(prep_query, return_missing=True)
+
         # Inicializa un contador para los términos faltantes
         missing_count = {}
 
@@ -37,21 +37,21 @@ class Retrieval_Vectorial(ModelSearchInterface):
         # Agrega los términos faltantes al BoW con un recuento de 0
         for term_id, freq in missing_count.items():
             query_bow.append((term_id, freq))
-            
+
         # Calcular el TF-IDF para la consulta en relación con cada documento
         query_tfidf = model[query_bow]
-        
+
         # Crear un índice de similitud a partir del corpus TF-IDF
         index = MatrixSimilarity(model[corpus])
-        
+
         # Calcular la similitud de la consulta con cada documento
         sims = index[query_tfidf]
-        
-        # Encontrar el índice del documento con la mayor similitud
-        max_sim_index = sims.argmax()
-        
-        # Obtener el ID del documento más relevante
-        most_relevant_doc_id = id_tf_documents[max_sim_index][0]
-        document = controller.get_document_by_id(most_relevant_doc_id)
-        
-        return document
+
+        # Ordenar los documentos por similitud
+        sorted_sims_indices = sims.argsort()[::-1][:no_docs]
+
+        # Obtener los IDs de los documentos más relevantes
+        most_relevant_doc_ids = [id_tf_documents[i][0] for i in sorted_sims_indices]
+        documents = [controller.get_document_by_id(doc_id) for doc_id in most_relevant_doc_ids]
+
+        return documents
