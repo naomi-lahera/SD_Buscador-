@@ -111,23 +111,27 @@ class ChordNode:
         self.ref = ChordNodeReference(self.ip, self.port)
         self.succ = None
         self.pred = None
-        self.m = m # Number of bits in the hash/key spac
+        
+#____________________________________________________________OK______________________________________________________________________#
+        # self.m = m # Number of bits in the hash/key spac
 
-        self.finger = [self.ref] * self.m  # Finger table
-        # print(f'm : {self.m}')
-        self.next = 0  # Finger table index to fix next
-
-        self.Leader = None
-        self.mcast_adrr = MCAST_ADRR
-        self.InElection = False
-        self.ImTheLeader = True
+        # self.finger = [self.ref] * self.m  # Finger table
+        # # print(f'm : {self.m}')
+        # self.next = 0  # Finger table index to fix next
+#___________________________________________________________________________________________________________________________________#
+        
+#______________________________________________BULLY_________________________________________________________________________________#
+        # self.Leader = None
+        # self.mcast_adrr = MCAST_ADRR
+        # self.InElection = False
+        # self.ImTheLeader = True
+#____________________________________________________________________________________________________________________________________#
 
         threading.Thread(target=self.stabilize, daemon=True).start()
         threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         # threading.Thread(target=self.mcast_server).start()
         # threading.Thread(target=self.election_loop, daemon=True).start()
-        threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
-
+        # threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
 
     # Helper method to check if a value is in the range (start, end]
     def _inbetween(self, k: int, start: int, end: int) -> bool:
@@ -144,12 +148,13 @@ class ChordNode:
             s.close()
             logger.debug(f'Broadcast sended')
 
-
-    def mcast_call(self, message: str, mcast_addr: str, port: int):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
-        s.sendto(message.encode(), (mcast_addr, port))
-        s.close()
+#__________________________________________BULLY________________________________________________________________________________#
+    # def mcast_call(self, message: str, mcast_addr: str, port: int):
+    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+    #     s.sendto(message.encode(), (mcast_addr, port))
+    #     s.close()
+#__________________________________________BULLY_________________________________________________________________________________#
 
     # # Method to find the successor of a given id
     # def find_succ(self, id: int) -> 'ChordNodeReference':
@@ -170,19 +175,24 @@ class ChordNode:
     #         logger.debug(f'isinstance: {isinstance(node, ChordNodeReference)}')
     #         return node if isinstance(node, ChordNodeReference) else self.ref
 
+#_______________________________________________OK___________________________________________________________________#
     # Method to find the closest preceding finger of a given id
-    def closest_succeding_finger(self, id: int) -> 'ChordNodeReference':
-        for i in range(self.m):
-            if self.finger[i] and self._inbetween(id, self.id, self.finger[i].id):
-                return self.finger[i]
-        return self.ref
-    
+    # def closest_succeding_finger(self, id: int) -> 'ChordNodeReference':
+    #     for i in range(self.m):
+    #         if self.finger[i] and self._inbetween(id, self.id, self.finger[i].id):
+    #             return self.finger[i]
+    #     return self.ref
+#___________________________________________________________________________________________________________________#
+
+
+#_______________________________________PENDIENTE A PRUEBA__________________________________________________________#    
      # Method to find the closest preceding finger of a given id
-    def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
-        for i in range(self.m - 1, -1, -1):
-            if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
-                return self.finger[i]
-        return self.ref
+    # def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
+    #     for i in range(self.m - 1, -1, -1):
+    #         if self.finger[i] and self._inbetween(self.finger[i].id, self.id, id):
+    #             return self.finger[i]
+    #     return self.ref
+#____________________________________________________________________________________________________________________#
 
     def find_succ(self, id: int) -> 'ChordNodeReference':
         if not self.pred: # Existe unúnico nodo en el anillo
@@ -192,17 +202,17 @@ class ChordNode:
 
         if self.id < id: # Mi sucesor es mejor candidato a sucesor que yo
             if self.succ.id > self.id: # # Mi sucesor es mejor candidato a sucesor que yo
-                closest_succeding_finger = self.closest_succeding_finger(id)
-                # return self.succ.find_successor(id)
-                return closest_succeding_finger.find_successor(id)
+                # closest_succeding_finger = self.closest_succeding_finger(id)
+                return self.succ.find_successor(id)
+                # return closest_succeding_finger.find_successor(id)
             else:
                 return self.succ # El nodo esta entre yo y mi sucesor. El sucesor el mi sucesor
         else: # Soy candidatoa  sucesor
             if self.pred.id < self.id: # Verificacion de que soy el menor de los mayores
                 if self.pred.id > id: # Mi predecesor es mejor candidato a sucesor que yo
-                    closest_preceding_finger = self.closest_preceding_finger(id)
-                    # return self.pred.find_successor(id)
-                    return closest_preceding_finger.find_successor(id)
+                    # closest_preceding_finger = self.closest_preceding_finger(id)
+                    return self.pred.find_successor(id)
+                    # return closest_preceding_finger.find_successor(id)
                 else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
                     return self.ref
             else: # El nodo esta entre mi predecesor y yo. Yo soy el sucesor del nodo
@@ -238,19 +248,21 @@ class ChordNode:
         if not self.pred or self._inbetween(node.id, self.pred.id, self.id):
             self.pred = node
 
+#_____________________________________________________________OK________________________________________________________________________#
     # Fix fingers method to periodically update the finger table
-    def fix_fingers(self):
-        while True:
-            try:
-                for node_index in range(len(self.finger)):
-                    self.finger[node_index] = self.find_succ((self.id + 2**node_index) % 2**self.m)
-            except Exception as e:
-                print(f"Error in fix_fingers: {e}")
+    # def fix_fingers(self):
+    #     while True:
+    #         try:
+    #             for node_index in range(len(self.finger)):
+    #                 self.finger[node_index] = self.find_succ((self.id + 2**node_index) % 2**self.m)
+    #         except Exception as e:
+    #             print(f"Error in fix_fingers: {e}")
 
-            for index, node in enumerate(self.finger):
-                logger.debug(f'node: {index} succesor: {node}')
+    #         for index, node in enumerate(self.finger):
+    #             logger.debug(f'node: {index} succesor: {node}')
 
-            time.sleep(10)
+    #         time.sleep(10)
+#________________________________________________________________________________________________________________________________________#
 
     # Reciev boradcast message
     def _receiver_broadcast(self):
@@ -279,87 +291,89 @@ class ChordNode:
             except Exception as e:
                 print(f"Error in _receiver_boradcast: {e}")
 
+#____________________________________________BULLY___________________________________________________________________________________#
+    # def election_bully(self, id, otherId):
+    #     return int(id.split('.')[-1]) > int(otherId.split('.')[-1])
 
-    def election_bully(self, id, otherId):
-        return int(id.split('.')[-1]) > int(otherId.split('.')[-1])
+    # def election_call(self):
+    #     threading.Thread(target=self.mcast_call, args=(f'{ELECTION}', MCAST_ADRR, MCAST_PORT)).start()
+    #     print("Election Started")
 
-    def election_call(self):
-        threading.Thread(target=self.mcast_call, args=(f'{ELECTION}', MCAST_ADRR, MCAST_PORT)).start()
-        print("Election Started")
+    # def election_winner_call(self):
+    #     threading.Thread(target=self.mcast_call, args=(f'{ELECTION_WINNER}', MCAST_ADRR, MCAST_PORT))
+    #     print("Elected Leadder")
 
-    def election_winner_call(self):
-        threading.Thread(target=self.mcast_call, args=(f'{ELECTION_WINNER}', MCAST_ADRR, MCAST_PORT))
-        print("Elected Leadder")
+    # def election_loop(self):
+    #     counter = 0
+    #     while True:
+    #         if not self.Leader and not self.InElection:
+    #             self.election_call()
+    #             self.InElection = True
 
-    def election_loop(self):
-        counter = 0
-        while True:
-            if not self.Leader and not self.InElection:
-                self.election_call()
-                self.InElection = True
+    #         elif self.InElection:
+    #             counter += 1
+    #             if counter == 10:
+    #                 if not self.Leader and self.ImTheLeader:
+    #                     self.ImTheLeader = True
+    #                     self.Leader = self.id
+    #                     self.InElection = False
+    #                     self.election_winner_call()
+    #                 counter = 0
+    #                 self.InElection = False
 
-            elif self.InElection:
-                counter += 1
-                if counter == 10:
-                    if not self.Leader and self.ImTheLeader:
-                        self.ImTheLeader = True
-                        self.Leader = self.id
-                        self.InElection = False
-                        self.election_winner_call()
-                    counter = 0
-                    self.InElection = False
+    #         else:
+    #             print(f'Leader: {self.Leader}')
 
-            else:
-                print(f'Leader: {self.Leader}')
+    #         print(f"{counter} waiting")
+    #         time.sleep(1)
 
-            print(f"{counter} waiting")
-            time.sleep(1)
+    # def mcast_server(self):
+    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     membership = socket.inet_aton(self.mcast_adrr) + socket.inet_aton('0.0.0.0')
+    #     s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
+    #     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    def mcast_server(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        membership = socket.inet_aton(self.mcast_adrr) + socket.inet_aton('0.0.0.0')
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #     s.bind(('', int(MCAST_PORT)))
 
-        s.bind(('', int(MCAST_PORT)))
+    #     while True:
+    #         try:
+    #             msg, sender = s.recvfrom(1024)
+    #             if not msg:
+    #                 continue  # Ignorar mensajes vacíos
 
-        while True:
-            try:
-                msg, sender = s.recvfrom(1024)
-                if not msg:
-                    continue  # Ignorar mensajes vacíos
+    #             logger.debug(f'multcast msg: {msg}')
+    #             newId = sender[0]
+    #             msg = msg.decode("utf-8")
 
-                logger.debug(f'multcast msg: {msg}')
-                newId = sender[0]
-                msg = msg.decode("utf-8")
+    #             if msg.isdigit():
+    #                 msg = int(msg)
+    #                 if msg == ELECTION and not self.InElection:
+    #                     print(f"Election message received from: {newId}")
 
-                if msg.isdigit():
-                    msg = int(msg)
-                    if msg == ELECTION and not self.InElection:
-                        print(f"Election message received from: {newId}")
+    #                     if not self.InElection:
+    #                         self.InElection = True
+    #                         self.Leader = None
+    #                         self.election_call()
 
-                        if not self.InElection:
-                            self.InElection = True
-                            self.Leader = None
-                            self.election_call()
+    #                     if self.election_bully(self.id, newId):
+    #                         s_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #                         s_send.sendto(f'{ELECTION_OK}'.encode(), (newId, self.port))
 
-                        if self.election_bully(self.id, newId):
-                            s_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                            s_send.sendto(f'{ELECTION_OK}'.encode(), (newId, self.port))
+    #                 elif msg == ELECTION_OK:
+    #                     print(f"OK message received from: {newId}")
+    #                     if self.Leader and self.election_bully(newId, self.Leader):
+    #                         self.Leader = newId
+    #                     self.ImTheLeader = False
 
-                    elif msg == ELECTION_OK:
-                        print(f"OK message received from: {newId}")
-                        if self.Leader and self.election_bully(newId, self.Leader):
-                            self.Leader = newId
-                        self.ImTheLeader = False
+    #                 elif msg == ELECTION_WINNER:
+    #                     print(f"Winner message received from: {newId}")
+    #                     if not self.election_bully(self.id, newId) and (not self.Leader or self.election_bully(newId, self.Leader)):
+    #                         self.Leader = newId
+    #                         if(self.Leader != self.id):
+    #                             self.ImTheLeader = False
+    #                         self.InElection = False
 
-                    elif msg == ELECTION_WINNER:
-                        print(f"Winner message received from: {newId}")
-                        if not self.election_bully(self.id, newId) and (not self.Leader or self.election_bully(newId, self.Leader)):
-                            self.Leader = newId
-                            if(self.Leader != self.id):
-                                self.ImTheLeader = False
-                            self.InElection = False
-
-            except Exception as e:
-                print(f"Error in server_thread: {e}")
+    #         except Exception as e:
+    #             print(f"Error in server_thread: {e}")
+                
+#__________________________________________________BULLY_____________________________________________________________________________
