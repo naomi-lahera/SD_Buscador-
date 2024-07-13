@@ -8,8 +8,6 @@ class Leader:
     responses_queue = Queue()
     query_states = {}
     query_states_lock = Lock()
-    controller = DocumentoController("leader")
-    model = Retrieval_Vectorial()
 
     @staticmethod
     def receive_query_from_client(chord_node, query: str, ip_client):
@@ -33,7 +31,7 @@ class Leader:
         with Leader.query_states_lock:
             Leader.query_states[hashed_query]["timeout_timer"] = timer
 
-        documents = Leader.__send_answer_to_client(hashed_query)
+        documents = Leader.__send_answer_to_client(hashed_query,ip_client)
         return ip_client, documents
 
     @staticmethod
@@ -51,12 +49,14 @@ class Leader:
                 # Limpieza adicional si es necesario
 
     @staticmethod
-    def __send_answer_to_client(hashed_query):
+    def __send_answer_to_client(hashed_query,ip_client):
         with Leader.query_states_lock:
             state = Leader.query_states[hashed_query]
-            [Leader.controller.create_document(doc) for _, doc in state["responses_list"] if _ == hashed_query]
-            documents = Leader.model.retrieve(state["query"], Leader.controller, 10)
-            Leader.controller.delete_all_documents()
+            controller = DocumentoController(f"leader/{ip_client}/")
+            model = Retrieval_Vectorial()
+            [controller.create_document(doc) for _, doc in state["responses_list"] if _ == hashed_query]
+            documents = model.retrieve(state["query"], controller, 10)
+            controller.delete_all_documents()
             # Limpieza del estado de la consulta
             del Leader.query_states[hashed_query]
         return documents
