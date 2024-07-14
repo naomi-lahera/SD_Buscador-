@@ -124,9 +124,9 @@ class ChordNode():
         self.finger = [self.ref] * self.m  # Finger table
         self.next = 0  # Finger table index to fix next
         
-        threading.Thread(target=self.start_server, daemon=True).start()
-        threading.Thread(target=self.stabilize, daemon=True).start()
-        threading.Thread(target=self._receiver_broadcast, daemon=True).start()
+        # threading.Thread(target=self.start_server, daemon=True).start()
+        # threading.Thread(target=self.stabilize, daemon=True).start()
+        # threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         # threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
         
     # Helper method to check if a value is in the range (start, end]

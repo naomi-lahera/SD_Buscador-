@@ -25,12 +25,18 @@ FIND_PREDECESSOR = 2
 GET_SUCCESSOR = 3
 GET_PREDECESSOR = 4
 NOTIFY = 5
-CHECK_PREDECESSOR = 6
-CLOSEST_PRECEDING_FINGER = 7
-STORE_KEY = 8
-RETRIEVE_KEY = 9
-JOIN = 10
-SEARCH = 11
+INSERT_NODE = 6
+REMOVE_NODE = 7
+JOIN = 8
+ELECTION = 9
+ELECTION_OK = 10
+ELECTION_WINNER = 11
+CHECK_PREDECESSOR = 12
+CLOSEST_PRECEDING_FINGER = 13
+STORE_KEY = 14
+RETRIEVE_KEY = 15
+SEARCH = 16
+REQUEST_BROADCAST_QUERY = 17
 
 def read_or_create_db(ip):
     ip = str(ip)
@@ -84,6 +90,9 @@ class Node(ChordNode):
         read_or_create_db(ip)
         super().__init__(ip, port, m)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        threading.Thread(target=self._receiver_broadcast, daemon=True).start()
+        threading.Thread(target=self.stabilize, daemon=True).start()
+     
         self.controller = controller
         self.model = model   
         self.data = {}
