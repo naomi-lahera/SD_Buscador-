@@ -18,7 +18,6 @@ logging.basicConfig(level=logging.DEBUG,
 
 logger = logging.getLogger(__name__)
 
-# Operation codes
 FIND_SUCCESSOR = 1
 FIND_PREDECESSOR = 2
 GET_SUCCESSOR = 3
@@ -37,6 +36,8 @@ RETRIEVE_KEY = 15
 SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
+POW = 19
+
 def read_or_create_db(ip):
     ip = str(ip)
     folder_path = 'src/server/data/nodes_data/'
