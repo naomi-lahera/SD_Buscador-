@@ -65,7 +65,8 @@ class Client:
             print("No se pudo encontrar al líder. Intentando en 5 segundos reenviar la consulta...")
             time.sleep(5) 
             
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Crear un socket TCP para enviar la consulta al líder
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
         sock.bind(('', 8002))
         
@@ -73,27 +74,19 @@ class Client:
         message = f"20,{remitter_ip},{query_text}"
         
         print(message)
-        # sock.connect((self.leader_ip, self.leader_port))
-        print(f"Conectado al líder en {self.leader_ip}:{self.leader_port}")
-        # sock.sendall(message.encode())
-        sock.sendto(message.encode(), ('<broadcast>', self.port))
-        
-        print(f"Consulta enviada: {message}")
-        # sock.shutdown(socket.SHUT_RDWR)
-        
-        response_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        response_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
-        response_socket.bind(('', 8004))
-        
         try:
-            response_socket.settimeout(10)  # 10 segundos de tiempo de espera
-            data, addr = response_socket.recvfrom(1024)
-            if data:
-                data = data.decode('utf-8')
-                print(f"La respuesta de la consulta fue {data}")
-                return data
-        except:
-            print("Error al recibir la respuesta de la consulta")
+            sock.connect((self.leader_ip, self.leader_port))  # Establecer conexión con el líder
+            print(f"Conectado al líder en {self.leader_ip}:{self.leader_port}")
+            sock.sendall(message.encode())  # Enviar mensaje usando sendall para sockets TCP
+            
+            print(f"Consulta enviada: {message}")
+            sock.shutdown(socket.SHUT_RDWR)  # Indicar que no se enviarán más datos
+        except Exception as e:
+            print(f"Error al enviar la consulta al líder: {e}")
+        finally:
+            sock.close()  # Asegurarse de cerrar el socket cuando termine
+            
+        # No es necesario recibir respuesta en este ejemplo, pero puedes agregar lógica aquí si es necesario
 
     # def run(self):
     #     while True:
