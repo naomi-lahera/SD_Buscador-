@@ -6,7 +6,7 @@ import logging
 import hashlib
 import logging
 
-from node.leader import Leader
+# from node.leader import Leader
 
 # Configurar el nivel de log
 logging.basicConfig(level=logging.DEBUG,
@@ -32,6 +32,7 @@ STORE_KEY = 14
 RETRIEVE_KEY = 15
 SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
+FIND_LEADER = 18
 # Configurar el nivel de log
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
@@ -44,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 def getShaRepr(data: str, max_value: int = 16):
     # Genera el hash SHA-1 y obtén su representación en hexadecimal
+    data = str(data)
     hash_hex = hashlib.sha1(data.encode()).hexdigest()
     
     # Convierte el hash hexadecimal a un entero
@@ -253,13 +255,15 @@ class ChordNode():
             
     # Reciev boradcast message 
     def _receiver_broadcast(self):
+        print("recive broadcast de chord")
+        
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.bind(('', int(self.port)))
         
         # logger.debug(f'running _reciev_broadcast running')
         
         while True:
-            msg, _ = s.recvfrom(1024)
+            msg, addr = s.recvfrom(1024)
             
             logger.debug(f'Received broadcast: {self.ip}')
             
@@ -281,6 +285,19 @@ class ChordNode():
                     else:
                         new_node_ref = ChordNodeReference(msg[2])
                         new_node_ref._send_data(JOIN, {self.ref})
+                
+                if option == FIND_LEADER:
+                    print("Entra al if correcto en chord")
+                    # Asegúrate de que msg[1] contiene la dirección IP del cliente que hizo el broadcast
+                    ip_client = msg[1].strip()  # Elimina espacios en blanco
+                    response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
+                    print("-----------------------------------------")
+                    print(f"enviando respuesta {response} a {(ip_client,8003)}")
+                    print("-----------------------------------------")
+
+                    s.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
+                    
+                    
             except Exception as e:
                 print(f"Error in _receiver_boradcast: {e}")
                 

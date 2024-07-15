@@ -6,6 +6,7 @@ from typing import List
 import os
 import sqlite3
 from logic.models.model_interface import ModelSearchInterface
+from node.leader_to_base import LeaderNode
 
 from data_access_layer.controller_interface import BaseController
 
@@ -37,7 +38,7 @@ STORE_KEY = 14
 RETRIEVE_KEY = 15
 SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
-
+FIND_LEADER = 18
 def read_or_create_db(ip):
     ip = str(ip)
     folder_path = 'src/server/data/nodes_data/'
@@ -89,6 +90,7 @@ class Node(ChordNode):
     def __init__(self, model:ModelSearchInterface,controller:BaseController,ip: str, port: int = 8001, m: int = 160):
         read_or_create_db(ip)
         super().__init__(ip, port, m)
+        print(ip)
         threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
         threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         threading.Thread(target=self.stabilize, daemon=True).start()
@@ -96,7 +98,9 @@ class Node(ChordNode):
         self.controller = controller
         self.model = model   
         self.data = {}
-    
+        self.is_leader = True if ip == '172.17.0.2' else False 
+        print(self.is_leader)
+
     def add_doc(self,document):
         return self.controller.create_document(document)
     
@@ -115,8 +119,21 @@ class Node(ChordNode):
     def search(self, query) -> List:
         return self.model.retrieve(query,self.controller)
     
+    def listen_for_broadcast_L(self):
+        if self.is_leader:
+            return self.listen_for_broadcast()
+        
+    def listen_for_clients_L(self):
+        if self.is_leader:
+            return self.listen_for_clients()
+        
+    def receive_query_from_client_L(self, chord_node, query: str, ip_client: str):
+        if self.is_leader:
+            return self.receive_query_from_client(chord_node,query,ip_client)
+    
     # Start server method to handle incoming requests
     def start_server(self):
+        print("Start server de node")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.ip, self.port))
@@ -173,6 +190,16 @@ class Node(ChordNode):
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))
+                # elif option == FIND_LEADER:
+                #     print("Entra al if correcto en node")
+                #     # Asegúrate de que msg[1] contiene la dirección IP del cliente que hizo el broadcast
+                #     ip_client = msg[1].strip()  # Elimina espacios en blanco
+                #     response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
+                #     print("-----------------------------------------")
+                #     print(f"enviando respuesta {response} a {(ip_client,8003)}")
+                #     print("-----------------------------------------")
+
+                #     s.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
                     
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()
