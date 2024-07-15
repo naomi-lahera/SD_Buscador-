@@ -1,5 +1,5 @@
 import socket
-from node.node_leader import Node
+from node.node import Node
 import sys
 # from node.chord.chord import ChordNodeReference
 from logic.models.retrieval_vectorial import Retrieval_Vectorial

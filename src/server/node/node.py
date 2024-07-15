@@ -39,6 +39,12 @@ FIND_LEADER = 18
 PING = 19
 QUERY_FROM_CLIENT = 20
 
+#-------------------------PUERTOS------------------------------
+LEADER_REC_CLIENT = 1
+LEADER_SEND_CLIENT_FIND = 2
+LEADER_SEND_CLIENT_QUERY = 3
+LEADER_POW = 4
+#-------------------------PUERTOS------------------------------
 def read_or_create_db(ip):
     ip = str(ip)
     folder_path = 'src/server/data/nodes_data/'
@@ -130,8 +136,8 @@ class Node(ChordNode):
     def listen_for_broadcast(self):
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        logger.debug(f"listen : {('', self.port+1)}")
-        broadcast_socket.bind(('', self.port+1))
+        logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
+        broadcast_socket.bind(('', self.port+LEADER_REC_CLIENT))
         while True:
             msg, client_address = broadcast_socket.recvfrom(1024)
             logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
@@ -145,13 +151,13 @@ class Node(ChordNode):
                 print("query")
                 client_to_send ,documents = self.receive_query_from_client(self,text,ip_client)
                 response = f'{documents}'.encode()  # Prepara la respuesta con IP y puerto del líder
-                broadcast_socket.sendto(response, (client_to_send,8004))  # Envía la respuesta al cliente
-                print(f"{documents} sended to {(client_to_send,8004)}")
+                broadcast_socket.sendto(response, (client_to_send,self.port + LEADER_SEND_CLIENT_QUERY))  # Envía la respuesta al cliente
+                print(f"{documents} sended to {(client_to_send,self.port + LEADER_SEND_CLIENT_QUERY)}")
                 
             elif option == FIND_LEADER:
                 print("finding leader")
                 response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
-                logger.debug(f"enviando respuesta {response} a {(ip_client,8003)}")
+                logger.debug(f"enviando respuesta {response} a {(ip_client,LEADER_SEND_CLIENT_FIND)}")
                 broadcast_socket.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
 
     def handle_client(self, client_socket):

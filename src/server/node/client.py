@@ -2,6 +2,12 @@ import socket
 import threading
 import time
 
+#------------------------PUERTOS------------------------------
+LEADER_REC_CLIENT = 1
+LEADER_SEND_CLIENT_FIND = 2
+LEADER_SEND_CLIENT_QUERY = 3
+LEADER_POW = 4
+
 class Client:
     def __init__(self):
         self.port = 8002
@@ -59,11 +65,10 @@ class Client:
             print("No se pudo encontrar al líder. Intentando en 5 segundos reenviar la consulta...")
             time.sleep(5) 
             
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
         sock.bind(('', 8002))
-
+        
         remitter_ip = socket.gethostbyname(socket.gethostname())
         message = f"20,{remitter_ip},{query_text}"
         
@@ -74,7 +79,7 @@ class Client:
         sock.sendto(message.encode(), ('<broadcast>', self.port))
         
         print(f"Consulta enviada: {message}")
-        sock.shutdown(socket.SHUT_RDWR)
+        # sock.shutdown(socket.SHUT_RDWR)
         
         response_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         response_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto

@@ -40,6 +40,11 @@ REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
 POW = 19
 
+#------------------------------PUERTOS------------------------------
+LEADER_REC_CLIENT = 1
+LEADER_SEND_CLIENT_FIND = 2
+LEADER_SEND_CLIENT_QUERY = 3
+LEADER_POW = 4
 #____________________________________________POW___________________________________________________________________________#
 HOST = '0.0.0.0'
 PUB_PORT = '8002'
@@ -343,7 +348,7 @@ class ChordNode():
                 
      # Reciev boradcast message
     def pow(self):
-        PUB_PORT = '8002'
+        PUB_PORT = '8005'
         # ID = str(socket.gethostbyname(socket.gethostname()))
 
         # print(f"Running on {ID}")
