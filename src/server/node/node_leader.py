@@ -38,6 +38,7 @@ REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
 PING = 19
 QUERY_FROM_CLIENT = 20
+
 def read_or_create_db(ip):
     ip = str(ip)
     folder_path = 'src/server/data/nodes_data/'
@@ -205,8 +206,6 @@ class Node(ChordNode):
     def start_server(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            logger.debug(f"start server : {(self.ip, self.port)}")
-            
             s.bind((self.ip, self.port))
             s.listen(10)
 
@@ -234,10 +233,10 @@ class Node(ChordNode):
                     data_resp = self.succ if self.succ else self.ref
                 elif option == GET_PREDECESSOR:
                     data_resp = self.pred if self.pred else self.ref
-                # elif option == NOTIFY:
-                #     id = int(data[1])
-                #     ip = data[2]
-                #     self.notify(ChordNodeReference(ip, self.port))
+                elif option == NOTIFY:
+                    # id = int(data[1])
+                    ip = data[2]
+                    self.notify(ChordNodeReference(ip, self.port))
                 elif option == NOTIFY:
                     ip = data[2]
                     self.notify(ChordNodeReference(ip, self.port))
@@ -255,14 +254,14 @@ class Node(ChordNode):
                 elif option == SEARCH:
                     query = data[1]
                     data_resp = self.search(query)
-                elif option == JOIN:
-                    # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-                    chord_node_ref = ChordNodeReference(data[2])
-                    if chord_node_ref:
-                        logger.debug(f'join to the chord network - {self.ip}')
-                        # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                        logger.debug(f'node_reference - {chord_node_ref.ip}')
-                        self.join(chord_node_ref)
+                # elif option == JOIN:
+                #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
+                #     chord_node_ref = ChordNodeReference(data[2])
+                #     if chord_node_ref:
+                #         logger.debug(f'join to the chord network - {self.ip}')
+                #         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
+                #         logger.debug(f'node_reference - {chord_node_ref.ip}')
+                #         self.join(chord_node_ref)
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))
