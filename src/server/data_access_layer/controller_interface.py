@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-
-
 class BaseController(ABC):
     """
     Clase base abstracta que define la interfaz para todos los controladores.
