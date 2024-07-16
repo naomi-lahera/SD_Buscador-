@@ -39,7 +39,10 @@ SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
 PING = 19
-QUERY_FROM_CLIENT = 20
+NOTIFY_PRED = 20
+CHECK_SUCCESOR = 21
+QUERY_FROM_CLIENT = 22
+
 
 #-------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
@@ -220,8 +223,11 @@ class Node(ChordNode):
                 if data == ['']:
                     # logger.debug(f"No hay data de {addr}")
                     continue
+                
+                threading.Thread(target=self.process_request, args=(conn, addr, data), daemon=True).start()
                     
-
+    
+    def process_request(self, conn: socket, addr, data):
                 data_resp = None
                 option = int(data[0])
 
@@ -241,11 +247,13 @@ class Node(ChordNode):
                 elif option == NOTIFY:
                     ip = data[2]
                     self.notify(ChordNodeReference(ip, self.port))
-                elif option == CHECK_PREDECESSOR:
+                # elif option == CHECK_PREDECESSOR:
+                #     pass
+                elif option == CHECK_SUCCESOR:
                     pass
-                elif option == CLOSEST_PRECEDING_FINGER:
-                    id = int(data[1])
-                    data_resp = self.closest_preceding_finger(id)
+                # elif option == CLOSEST_PRECEDING_FINGER:
+                #     id = int(data[1])
+                #     data_resp = self.closest_preceding_finger(id)
                 elif option == STORE_KEY:
                     key, value = data[1], data[2]
                     self.data[key] = value
@@ -258,6 +266,9 @@ class Node(ChordNode):
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))
+                # elif option == NOTIFY_PRED:
+                #     ip = data[2]
+                #     self.notify_pred(ChordNodeReference(ip, self.port))
                     
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()

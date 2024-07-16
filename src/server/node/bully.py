@@ -1,4 +1,4 @@
-import socket,multiprocessing,threading,time
+import socket, threading, time
 
 PORT = '8005'
 MCASTADDR = '224.0.0.1'
@@ -25,13 +25,13 @@ class BullyBroadcastElector:
         self.InElection = False
         self.ImTheLeader = True
 
-    def bully(self, id, otherId):
+    def bully(self, id: str, otherId: str):
         return int(id.split('.')[-1]) > int(otherId.split('.')[-1])
 
     def election_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{ELECTION}', self.port))
         t.start() 
-        print("Election Started")
+        # print("Election Started")
 
     def winner_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{WINNER}', self.port))
@@ -61,7 +61,7 @@ class BullyBroadcastElector:
             else:
                 print(f'Leader: {self.Leader}')
 
-            print(f"{counter} waiting")
+            # print(f"{counter} waiting")
             time.sleep(1)
 
     def server_thread(self):

@@ -33,7 +33,7 @@ JOIN = 8
 ELECTION = 9
 ELECTION_OK = 10
 ELECTION_WINNER = 11
-CHECK_PREDECESSOR = 12
+CHECK_NODE = 12
 CLOSEST_PRECEDING_FINGER = 13
 STORE_KEY = 14
 RETRIEVE_KEY = 15
@@ -41,6 +41,8 @@ SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
 POW = 19
+NOTIFY_PRED = 20
+CHECK_SUCCESOR = 21
 
 #------------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
@@ -81,6 +83,10 @@ class ChordNodeReference:
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                # if op == CHECK_NODE:
+                #     s.settimeout(2)
+                if op == CHECK_SUCCESOR:
+                    s.settimeout(2)
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
                 return s.recv(1024)
@@ -114,6 +120,12 @@ class ChordNodeReference:
     def notify(self, node: 'ChordNodeReference'):
         # logger.debug(f'node {self.id} sending notify to {node}')
         self._send_data(NOTIFY, f'{node.id},{node.ip}')
+        
+    def check_succesor(self):
+        return self._send_data(CHECK_SUCCESOR)
+        
+    # def notify_pred(self, node: 'ChordNodeReference'):
+    #     self._send_data(NOTIFY_PRED, f'{node.id},{node.ip}')
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
@@ -121,6 +133,10 @@ class ChordNodeReference:
     def __repr__(self) -> str:
         return str(self)
 
+    # def check_node(self):
+    #     return self._send_data(CHECK_NODE)
+    
+    
 
 class ChordNode():
     def __init__(self, ip: str, port: int = 8001, m: int = 4):
@@ -142,6 +158,8 @@ class ChordNode():
 
         self.e = BullyBroadcastElector()
         threading.Thread(target=self.e.loop, daemon=True).start()
+        # threading.Thread(target=self.check_predecessor, daemon=True).start()
+        threading.Thread(target=self.check_succesor, daemon=True).start()
         
 
     # Helper method to check if a value is in the range (start, end]
@@ -200,7 +218,7 @@ class ChordNode():
 #____________________________________________________________________________________________________________________#
 
     def find_succ(self, id: int) -> 'ChordNodeReference':
-        if not self.pred: # Existe unúnico nodo en el anillo
+        if not self.pred and not self.succ: # Existe unúnico nodo en el anillo
             return self.ref
 
         # logger.debug(f'closest_succeding_finger de {id} : {self.closest_succeding_finger(id)}')
@@ -239,12 +257,17 @@ class ChordNode():
         """Regular check for correct Chord structure."""
         while True:
             if self.succ:
+                if self.succ.check_succesor() == b'':
+                    time.sleep(10)
+                    continue
                 x = self.succ.predecessor
-                if x.id != self.id:
+                if x and x.id != self.id:
                     self.succ = x
                 self.succ.notify(self.ref)
+                
             if not self.succ and self.pred:
                 self.succ = self.pred
+                
             print(f"node : {self.id} \n successor : {self.succ} predecessor {self.pred}")
             time.sleep(10)
 
@@ -319,3 +342,39 @@ class ChordNode():
             except Exception as e:
                 print(f"Error in _receiver_boradcast: {e}")
                 
+    def find_pred(self, id: int, direction=True) -> 'ChordNodeReference':
+        node = self
+        if direction:
+            while not self._inbetween(id, node.id, node.succ.id):
+                node = node.succ
+        else:
+            while not self._inbetween(id, node.pred.id, node.id):
+                node = node.pred
+        return node
+            
+    # def check_predecessor(self):
+    #     while True:
+    #         if self.pred and self.pred.check_node() == b'':
+    #             logger.debug('\n\n\n ALARMA!!! PREDECESOR PERDIDO!!! \n\n\n')
+    #             self.pred = self.find_pred(self.pred.id)
+    #             self.pred.notify_pred(self.ref)
+    #         time.sleep(10)
+
+    # def notify_pred(self, node: 'ChordNodeReference'):
+    #     logger.debug(f'in notify_pred, my id: {self.id} my succ: {node.id}')
+    #     self.succ = node
+        
+    def check_succesor(self):
+        while True:
+            if self.succ:
+                logger.debug(f'succesor de {self.id} = {self.succ.id}')
+            if self.succ and self.succ.check_succesor() == b'':
+                logger.debug('\n\n\n ALARMA!!! SUCESOR PERDIDO!!! \n\n\n')
+                if self.pred:
+                    self.succ = self.pred.find_successor(self.succ.id)
+                    if self.succ:
+                        self.succ.notify(self.ref)
+                else:
+                    self.succ = self.pred = None
+            time.sleep(10)
+
