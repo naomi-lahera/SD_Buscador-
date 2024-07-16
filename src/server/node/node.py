@@ -99,63 +99,21 @@ class Node(ChordNode):
     query_states = {}
     query_states_lock = threading.Lock()
 
-    def __init__(self, model: ModelSearchInterface, controller: BaseController, ip: str, port: int = 8001, m: int = 160, leader_ip='172.17.0.2', leader_port=8002):
+    def __init__(self, model: ModelSearchInterface, controller: BaseController, ip: str, port: int = 8001, m: int = 160, leader_ip='', leader_port=8002):
         read_or_create_db(ip)
         super().__init__(ip, port, m)
         self.logger = logging.getLogger(__name__)
         self.controller = controller
         self.model = model
         self.data = {}
-        # self.is_leader = self.ImLeader
         self.leader_ip = leader_ip
         self.leader_port = leader_port
-        # if self.ImLeader:
-        #     self.start_listen_for_broadcast_thread()
             
         threading.Thread(target=self.start_server, daemon=True).start()  # Iniciar servidor
         threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         threading.Thread(target=self.stabilize, daemon=True).start()
+        logger.debug("Ahora vamo pal listen")
         threading.Thread(target=self.listen_for_broadcast, daemon=True).start() 
-        
-
-        # logger.debug(self.ip)
-                
-    # def check_leader_status_loop(self):
-    #     """Ciclo infinito que verifica el estado de liderazgo y ajusta el hilo de escucha."""
-    #     while True:
-    #         if self.ImLeader and (getattr(self, 'listen_for_broadcast_thread', None) is None or not self.listen_for_broadcast_thread.is_alive()):
-    #             self.start_listen_for_broadcast_thread()
-    #         else:
-    #             self.stop_listen_for_broadcast_thread()
-    #         time.sleep(5)  # Verifica cada 5 segundos
-
-    # def start_listen_for_broadcast_thread(self):
-    #     """Inicia el hilo de escucha de broadcast si no hay otro en ejecución."""
-    #     if getattr(self, 'listen_for_broadcast_thread', None) is None or not self.listen_for_broadcast_thread.is_alive():
-    #         self.listen_for_broadcast_thread = threading.Thread(target=self.safe_listen_for_broadcast, daemon=True)
-    #         self.listen_for_broadcast_thread.start()
-
-    # def safe_listen_for_broadcast(self):
-    #     """Ejecuta el hilo de escucha y verifica periódicamente si el nodo sigue siendo líder."""
-    #     broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #     # logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
-    #     broadcast_socket.bind(('', self.port+LEADER_REC_CLIENT))
-    #     try:
-    #         while self.ImLeader:  # Mientras el nodo sea líder, escucha mensajes
-    #             msg, client_address = broadcast_socket.recvfrom(1024)
-    #             # logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
-    #             # Procesa los mensajes recibidos...
-    #             time.sleep(1)  # Verifica cada segundo para mantener el bucle activo
-    #     finally:
-    #         broadcast_socket.close()
-
-    # # Método para detener el hilo de forma segura si el nodo deja de ser líder
-    # def stop_listen_for_broadcast_thread(self):
-    #     """Detiene el hilo de escucha de broadcast de forma segura."""
-    #     if hasattr(self, 'listen_for_broadcast_thread') and self.listen_for_broadcast_thread.is_alive():
-    #         self.listen_for_broadcast_thread.join(timeout=1)  # Espera hasta 1 segundo para que termine
-    #         self.listen_for_broadcast_thread = None
         
     def add_doc(self,document):
         return self.controller.create_document(document)
@@ -181,13 +139,13 @@ class Node(ChordNode):
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
-        broadcast_socket.bind(('', self.port+LEADER_REC_CLIENT))
+        broadcast_socket.bind(('', self.leader_port))
         while True:
             msg, client_address = broadcast_socket.recvfrom(1024)
-            # logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
-            # logger.debug("\n****************************************")
-            # logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
-            # logger.debug("\n****************************************")
+            logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
+            logger.debug("\n****************************************")
+            logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
+            logger.debug("\n****************************************")
             option, ip_client,text = msg.decode('utf-8').split(',')
             option = int(option)
             
@@ -200,15 +158,9 @@ class Node(ChordNode):
                 
             elif option == FIND_LEADER and self.e.ImTheLeader:
                 logger.debug("finding leader")
-                response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
+                response = f'{self.e.Leader},{self.leader_port}'.encode()  # Prepara la respuesta con IP y puerto del líder
                 logger.debug(f"enviando respuesta {response} a {(ip_client,LEADER_SEND_CLIENT_FIND)}")
                 broadcast_socket.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
-        
-    # def handle_client(self, client_socket):
-    #     request = client_socket.recv(1024).decode('utf-8')
-    #     # logger.debug(f"Solicitud recibida: {request}")
-    #     client_socket.sendall(b"Solicitud recibida")
-    #     client_socket.close()
 
     def receive_query_from_client(self, chord_node, query: str, ip_client: str):
         hashed_query = hashlib.sha256(query.encode()).hexdigest()
@@ -284,7 +236,6 @@ class Node(ChordNode):
                 elif option == GET_PREDECESSOR:
                     data_resp = self.pred if self.pred else self.ref
                 elif option == NOTIFY:
-                    # id = int(data[1])
                     ip = data[2]
                     self.notify(ChordNodeReference(ip, self.port))
                 elif option == NOTIFY:
@@ -304,21 +255,9 @@ class Node(ChordNode):
                 elif option == SEARCH:
                     query = data[1]
                     data_resp = self.search(query)
-                # elif option == JOIN:
-                #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-                #     chord_node_ref = ChordNodeReference(data[2])
-                #     if chord_node_ref:
-                #         logger.debug(f'join to the chord network - {self.ip}')
-                #         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                #         logger.debug(f'node_reference - {chord_node_ref.ip}')
-                #         self.join(chord_node_ref)
                 elif option == JOIN and not self.succ:
                     ip = data[2]
                     self.join(ChordNodeReference(ip, self.port))
-                # elif option == FIND_LEADER and self.is_leader:
-                #     logger.debug("Entra al if correcto")
-                #     response = f'{self.ip}'.encode()
-                #     conn.sendall(response)
                     
                 if data_resp:
                     response = f'{data_resp.id},{data_resp.ip}'.encode()

@@ -15,11 +15,17 @@ if __name__ == "__main__":
         # client_ip = '172.17.2.2'
         client = Client()
         client.send_query_to_leader("I like science")
-        while True:
-            pass
-    node = Node(Retrieval_Vectorial(),DocumentoController(ip),ip)
-
-    # if len(sys.argv) >= 2:
+    elif len(sys.argv) == 1:
+        node = Node(Retrieval_Vectorial(),DocumentoController(ip),ip)
+        
+    elif len(sys.argv) >= 2 and sys.argv[1] == '-n': # -n = new node
+        
+        node = Node(Retrieval_Vectorial(),DocumentoController(ip),ip)
+        node.joinwr()
+        
+    while True:
+        pass
+       # if len(sys.argv) >= 2:
     #     if sys.argv[1] == '-e':
     #         node.joinwr()
     #     elif sys.argv[1] == '-i':
@@ -33,9 +39,6 @@ if __name__ == "__main__":
     # print(sys.argv)    
     # print('*****************************************************')
 
-    if len(sys.argv) >= 2 and sys.argv[1] == '-n': # -n = new node
-        node.joinwr()
-    
 
     
     
@@ -45,7 +48,4 @@ if __name__ == "__main__":
     # print("---------------------------------------------")
     # print(node.search("Hi Nao, i like Science and animals too in any place"))
     # print("---------------------------------------------")
-    
-    while True:
-        pass
     
