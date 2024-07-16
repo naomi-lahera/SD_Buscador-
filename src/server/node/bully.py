@@ -31,7 +31,7 @@ class BullyBroadcastElector:
     def election_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{ELECTION}', self.port))
         t.start() 
-        # print("Election Started")
+        print("Election Started")
 
     def winner_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{WINNER}', self.port))
@@ -49,7 +49,7 @@ class BullyBroadcastElector:
 
             elif self.InElection:
                 counter += 1
-                if counter == 10:
+                if counter == 3:
                     if not self.Leader and self.ImTheLeader:
                         self.ImTheLeader = True
                         self.Leader = self.id
@@ -107,5 +107,6 @@ class BullyBroadcastElector:
                                 self.ImTheLeader = False
                             self.InElection = False
 
+                time.sleep(10)
             except Exception as e:
                 print(f"Error in server_thread: {e}")

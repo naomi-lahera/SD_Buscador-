@@ -19,9 +19,13 @@ class Client:
     def update_leader_info(self):
         """Actualiza la información del líder cada 5 segundos en un hilo separado."""
         while True:
-            leader_ip, leader_port = self.find_leader()
-            self.leader_ip, self.leader_port = leader_ip, leader_port
-            time.sleep(30)
+            try:
+                leader_ip, leader_port = self.find_leader()
+                self.leader_ip, self.leader_port = leader_ip, leader_port
+                time.sleep(4)
+            except:
+                print("-----No encontro el lider-------")
+                time.sleep(4)
 
     def find_leader(self):
         # Crear un socket para enviar el broadcast con SO_REUSEADDR
@@ -32,8 +36,8 @@ class Client:
         
         remitter_ip = socket.gethostbyname(socket.gethostname())
         message = f"18,{remitter_ip},hola"
+        print(f"Buscando líder en {self.port} ...")
         broadcast_socket.sendto(message.encode(), ('<broadcast>', self.port))
-        # print("Buscando líder...")
 
         # Crear un socket para recibir la respuesta del líder con SO_REUSEADDR
         response_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -41,7 +45,7 @@ class Client:
         response_socket.bind(('', 8003))
         print(f"Remitente {remitter_ip}")
         try:
-            response_socket.settimeout(10)  # 10 segundos de tiempo de espera
+            response_socket.settimeout(1)  # 10 segundos de tiempo de espera
             data, addr = response_socket.recvfrom(1024)
             if data:
                 leader_info = data.decode('utf-8').split(',')
@@ -51,9 +55,9 @@ class Client:
         except socket.timeout:
             print("Líder no encontrado. Cerrando el socket")
             pass
-        finally:
-            response_socket.close()
-            broadcast_socket.close()
+        # finally:
+        #     response_socket.close()
+        #     broadcast_socket.close()
 
     def send_query_to_leader(self, query_text):
         """
