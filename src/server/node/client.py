@@ -31,25 +31,26 @@ class Client:
         broadcast_socket.bind(('', 8002))
         
         remitter_ip = socket.gethostbyname(socket.gethostname())
-        message = f"18,{remitter_ip}, hola"
+        message = f"18,{remitter_ip},hola"
         broadcast_socket.sendto(message.encode(), ('<broadcast>', self.port))
-        print("Buscando líder...")
+        # print("Buscando líder...")
 
         # Crear un socket para recibir la respuesta del líder con SO_REUSEADDR
         response_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         response_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
         response_socket.bind(('', 8003))
-        
+        print(f"Remitente {remitter_ip}")
         try:
             response_socket.settimeout(10)  # 10 segundos de tiempo de espera
             data, addr = response_socket.recvfrom(1024)
             if data:
                 leader_info = data.decode('utf-8').split(',')
                 leader_ip, port = leader_info
-                print(f"Líder encontrado en {leader_ip}")
+                print(f"Líder encontrado en {addr}")
                 return leader_ip, int(port)
         except socket.timeout:
             print("Líder no encontrado. Cerrando el socket")
+            pass
         finally:
             response_socket.close()
             broadcast_socket.close()
@@ -57,35 +58,36 @@ class Client:
     def send_query_to_leader(self, query_text):
         """
         Envía una consulta al líder en el formato (20,<texto de la consulta>).
-        
+
         Args:
         query_text (str): El texto de la consulta a enviar.
         """
         while not self.leader_ip or not self.leader_port:
-            print("No se pudo encontrar al líder. Intentando en 5 segundos reenviar la consulta...")
+            # print("No se pudo encontrar al líder. Intentando en 5 segundos reenviar la consulta...")
             time.sleep(5) 
-            
+
         # Crear un socket TCP para enviar la consulta al líder
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
         sock.bind(('', 8002))
-        
+
         remitter_ip = socket.gethostbyname(socket.gethostname())
         message = f"20,{remitter_ip},{query_text}"
-        
-        print(message)
+
+        # print(message)
         try:
             sock.connect((self.leader_ip, self.leader_port))  # Establecer conexión con el líder
-            print(f"Conectado al líder en {self.leader_ip}:{self.leader_port}")
+            # print(f"Conectado al líder en {self.leader_ip}:{self.leader_port}")
             sock.sendall(message.encode())  # Enviar mensaje usando sendall para sockets TCP
-            
-            print(f"Consulta enviada: {message}")
+
+            # print(f"Consulta enviada: {message}")
             sock.shutdown(socket.SHUT_RDWR)  # Indicar que no se enviarán más datos
         except Exception as e:
-            print(f"Error al enviar la consulta al líder: {e}")
+            # print(f"Error al enviar la consulta al líder: {e}")
+            pass
         finally:
             sock.close()  # Asegurarse de cerrar el socket cuando termine
-            
+
         # No es necesario recibir respuesta en este ejemplo, pero puedes agregar lógica aquí si es necesario
 
     # def run(self):

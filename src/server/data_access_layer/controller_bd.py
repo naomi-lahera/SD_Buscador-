@@ -18,19 +18,19 @@ def read_or_create_joblib(ip):
     
     if not os.path.exists(f"src/server/data/nodes_data/{ip}/"):
         url = f"src/server/data/nodes_data/{ip}/"
-        print(f"Carpeta creada en: {url}")
+        # print(f"Carpeta creada en: {url}")
         
         os.makedirs(f"src/server/data/nodes_data/{ip}/", exist_ok=True)
        
     
     if os.path.exists(f"src/server/data/nodes_data/{ip}/dictionary.joblib"):
         # El archivo existe, cargar y retornar su contenido
-        print("EL joblib ya existe")
+        # print("EL joblib ya existe")
         return load(f"src/server/data/nodes_data/{ip}/dictionary.joblib")
     else:
         # El archivo no existe, crear uno nuevo con el objeto predeterminado
         dump(Dictionary(), f"src/server/data/nodes_data/{ip}/dictionary.joblib")
-        print("EL joblib fue creado correctamente")
+        # print("EL joblib fue creado correctamente")
         return Dictionary()
 
 class DocumentoController(BaseController):
@@ -66,7 +66,7 @@ class DocumentoController(BaseController):
         else:
             dump(DocumentoController.dictionary, f"src/server/data/nodes_data/{self.ip}/dictionary.joblib")
 
-        print("Diccionario actualizado y guardado.")  
+        # print("Diccionario actualizado y guardado.")  
 
     def get_documents(self):
         conexion = self.connect()
@@ -130,7 +130,7 @@ class DocumentoController(BaseController):
         DocumentoController.dictionary.add_documents(tokens_texto_documento)
         dump(DocumentoController.dictionary, 'dictionary.joblib')
 
-        print("Diccionario actualizado y guardado.")
+        # print("Diccionario actualizado y guardado.")
     
     def delete_document(self, id):
         conexion = self.connect()
@@ -152,7 +152,7 @@ class DocumentoController(BaseController):
         conexion.close()
         dump(DocumentoController.dictionary, 'dictionary.joblib')
 
-        print("Diccionario actualizado y guardado.")
+        # print("Diccionario actualizado y guardado.")
     
     def delete_all_documents(self):
         conexion = self.connect()
@@ -168,6 +168,6 @@ class DocumentoController(BaseController):
         conexion.commit()
         conexion.close()
 
-        print("Todos los documentos eliminados y diccionario actualizado.")        
+        # print("Todos los documentos eliminados y diccionario actualizado.")        
 
     

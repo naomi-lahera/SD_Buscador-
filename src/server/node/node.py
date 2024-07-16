@@ -11,6 +11,8 @@ import hashlib
 from logic.models.retrieval_vectorial import Retrieval_Vectorial
 from data_access_layer.controller_bd import DocumentoController
 from queue import Queue
+import time
+from node.bully import BullyBroadcastElector
 
 # Configuración inicial de logging
 logging.basicConfig(level=logging.DEBUG,
@@ -51,7 +53,7 @@ def read_or_create_db(ip):
     full_path = os.path.join(folder_path, ip)
     
     if os.path.exists(f"{full_path}/database.db"):
-        logger.debug("El nodo ya existia")
+        # logger.debug("El nodo ya existia")
         return 
     
     else:
@@ -59,9 +61,9 @@ def read_or_create_db(ip):
         # logger.debug(f"Carpeta creada en: {full_path}")
         try:
             conexion = sqlite3.connect(os.path.join(full_path, 'database.db'))
-            logger.debug("Conexión a la base de datos exitosa")
+            # logger.debug("Conexión a la base de datos exitosa")
         except Exception as e:
-            logger.debug(f"Error al conectar a la base de datos: {e}")
+            # logger.debug(f"Error al conectar a la base de datos: {e}")
             return
     
         cursor = conexion.cursor()
@@ -90,7 +92,7 @@ def read_or_create_db(ip):
         ''')
         conexion.commit()
         conexion.close()
-        logger.debug("La base de datos se creó correctamente")    
+        # logger.debug("La base de datos se creó correctamente")    
 
 class Node(ChordNode):
     responses_queue = Queue()
@@ -104,17 +106,57 @@ class Node(ChordNode):
         self.controller = controller
         self.model = model
         self.data = {}
-        self.is_leader = False
+        # self.is_leader = self.ImLeader
         self.leader_ip = leader_ip
         self.leader_port = leader_port
+        # if self.ImLeader:
+        #     self.start_listen_for_broadcast_thread()
+            
         threading.Thread(target=self.start_server, daemon=True).start()  # Iniciar servidor
         threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         threading.Thread(target=self.stabilize, daemon=True).start()
-        if self.ip == self.leader_ip:
-            self.is_leader = True
-            threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
-        logger.debug(self.ip)
+        threading.Thread(target=self.listen_for_broadcast, daemon=True).start() 
+        
 
+        # logger.debug(self.ip)
+                
+    # def check_leader_status_loop(self):
+    #     """Ciclo infinito que verifica el estado de liderazgo y ajusta el hilo de escucha."""
+    #     while True:
+    #         if self.ImLeader and (getattr(self, 'listen_for_broadcast_thread', None) is None or not self.listen_for_broadcast_thread.is_alive()):
+    #             self.start_listen_for_broadcast_thread()
+    #         else:
+    #             self.stop_listen_for_broadcast_thread()
+    #         time.sleep(5)  # Verifica cada 5 segundos
+
+    # def start_listen_for_broadcast_thread(self):
+    #     """Inicia el hilo de escucha de broadcast si no hay otro en ejecución."""
+    #     if getattr(self, 'listen_for_broadcast_thread', None) is None or not self.listen_for_broadcast_thread.is_alive():
+    #         self.listen_for_broadcast_thread = threading.Thread(target=self.safe_listen_for_broadcast, daemon=True)
+    #         self.listen_for_broadcast_thread.start()
+
+    # def safe_listen_for_broadcast(self):
+    #     """Ejecuta el hilo de escucha y verifica periódicamente si el nodo sigue siendo líder."""
+    #     broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #     # logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
+    #     broadcast_socket.bind(('', self.port+LEADER_REC_CLIENT))
+    #     try:
+    #         while self.ImLeader:  # Mientras el nodo sea líder, escucha mensajes
+    #             msg, client_address = broadcast_socket.recvfrom(1024)
+    #             # logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
+    #             # Procesa los mensajes recibidos...
+    #             time.sleep(1)  # Verifica cada segundo para mantener el bucle activo
+    #     finally:
+    #         broadcast_socket.close()
+
+    # # Método para detener el hilo de forma segura si el nodo deja de ser líder
+    # def stop_listen_for_broadcast_thread(self):
+    #     """Detiene el hilo de escucha de broadcast de forma segura."""
+    #     if hasattr(self, 'listen_for_broadcast_thread') and self.listen_for_broadcast_thread.is_alive():
+    #         self.listen_for_broadcast_thread.join(timeout=1)  # Espera hasta 1 segundo para que termine
+    #         self.listen_for_broadcast_thread = None
+        
     def add_doc(self,document):
         return self.controller.create_document(document)
     
@@ -132,39 +174,41 @@ class Node(ChordNode):
     
     def search(self, query) -> List:
         return self.model.retrieve(query,self.controller)
+                 
 
     def listen_for_broadcast(self):
+        logger.debug("listen for broadcast")
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
+        # logger.debug(f"listen : {('', self.port+LEADER_REC_CLIENT)}")
         broadcast_socket.bind(('', self.port+LEADER_REC_CLIENT))
         while True:
             msg, client_address = broadcast_socket.recvfrom(1024)
-            logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
-            logger.debug("\n****************************************")
-            logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
-            logger.debug("\n****************************************")
+            # logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
+            # logger.debug("\n****************************************")
+            # logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
+            # logger.debug("\n****************************************")
             option, ip_client,text = msg.decode('utf-8').split(',')
             option = int(option)
             
             if option == QUERY_FROM_CLIENT:
-                print("query")
+                # print("query")
                 client_to_send ,documents = self.receive_query_from_client(self,text,ip_client)
                 response = f'{documents}'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (client_to_send,self.port + LEADER_SEND_CLIENT_QUERY))  # Envía la respuesta al cliente
-                print(f"{documents} sended to {(client_to_send,self.port + LEADER_SEND_CLIENT_QUERY)}")
+                # print(f"{documents} sended to {(client_to_send,self.port + LEADER_SEND_CLIENT_QUERY)}")
                 
-            elif option == FIND_LEADER:
-                print("finding leader")
+            elif option == FIND_LEADER and self.e.ImTheLeader:
+                logger.debug("finding leader")
                 response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
                 logger.debug(f"enviando respuesta {response} a {(ip_client,LEADER_SEND_CLIENT_FIND)}")
                 broadcast_socket.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
-
-    def handle_client(self, client_socket):
-        request = client_socket.recv(1024).decode('utf-8')
-        logger.debug(f"Solicitud recibida: {request}")
-        client_socket.sendall(b"Solicitud recibida")
-        client_socket.close()
+        
+    # def handle_client(self, client_socket):
+    #     request = client_socket.recv(1024).decode('utf-8')
+    #     # logger.debug(f"Solicitud recibida: {request}")
+    #     client_socket.sendall(b"Solicitud recibida")
+    #     client_socket.close()
 
     def receive_query_from_client(self, chord_node, query: str, ip_client: str):
         hashed_query = hashlib.sha256(query.encode()).hexdigest()
@@ -194,7 +238,7 @@ class Node(ChordNode):
                     state["timeout_timer"].cancel()
                 while not Node.responses_queue.empty():
                     state["responses_list"].append(Node.responses_queue.get())
-                logger.debug("Respuestas recibidas:", state["responses_list"])
+                # logger.debug("Respuestas recibidas:", state["responses_list"])
 
     @classmethod
     def __send_answer_to_client(cls, hashed_query, ip_client):
@@ -222,7 +266,7 @@ class Node(ChordNode):
                 data = conn.recv(1024).decode().split(',')
                 
                 if data == ['']:
-                    logger.debug(f"No hay data de {addr}")
+                    # logger.debug(f"No hay data de {addr}")
                     continue
                     
 
@@ -281,7 +325,3 @@ class Node(ChordNode):
                     conn.sendall(response)
                 conn.close()
                 
-    def run(self):
-        if self.is_leader:
-            threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
-            self.listen_for_clients()

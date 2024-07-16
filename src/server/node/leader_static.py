@@ -45,7 +45,7 @@ class Leader:
                 while not Leader.responses_queue.empty():
                     state["responses_list"].append(Leader.responses_queue.get())
 
-                print("Respuestas recibidas:", state["responses_list"])
+                # print("Respuestas recibidas:", state["responses_list"])
                 # Limpieza adicional si es necesario
 
     @staticmethod

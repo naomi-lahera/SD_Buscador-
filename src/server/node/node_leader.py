@@ -45,7 +45,7 @@ def read_or_create_db(ip):
     full_path = os.path.join(folder_path, ip)
     
     if os.path.exists(f"{full_path}/database.db"):
-        logger.debug("El nodo ya existia")
+        # logger.debug("El nodo ya existia")
         return 
     
     else:
@@ -53,9 +53,9 @@ def read_or_create_db(ip):
         # logger.debug(f"Carpeta creada en: {full_path}")
         try:
             conexion = sqlite3.connect(os.path.join(full_path, 'database.db'))
-            logger.debug("Conexión a la base de datos exitosa")
+            # logger.debug("Conexión a la base de datos exitosa")
         except Exception as e:
-            logger.debug(f"Error al conectar a la base de datos: {e}")
+            # logger.debug(f"Error al conectar a la base de datos: {e}")
             return
     
         cursor = conexion.cursor()
@@ -84,7 +84,7 @@ def read_or_create_db(ip):
         ''')
         conexion.commit()
         conexion.close()
-        logger.debug("La base de datos se creó correctamente")    
+        # logger.debug("La base de datos se creó correctamente")    
 
 class Node(ChordNode):
     responses_queue = Queue()
@@ -107,7 +107,7 @@ class Node(ChordNode):
         if self.ip == self.leader_ip:
             self.is_leader = True
             threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
-        logger.debug(self.ip)
+        # logger.debug(self.ip)
 
     def add_doc(self,document):
         return self.controller.create_document(document)
@@ -130,33 +130,33 @@ class Node(ChordNode):
     def listen_for_broadcast(self):
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        logger.debug(f"listen : {('', self.port+1)}")
+        # logger.debug(f"listen : {('', self.port+1)}")
         broadcast_socket.bind(('', self.port+1))
         while True:
             msg, client_address = broadcast_socket.recvfrom(1024)
-            logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
-            logger.debug("\n****************************************")
-            logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
-            logger.debug("\n****************************************")
+            # logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
+            # logger.debug("\n****************************************")
+            # logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
+            # logger.debug("\n****************************************")
             option, ip_client,text = msg.decode('utf-8').split(',')
             option = int(option)
             
             if option == QUERY_FROM_CLIENT:
-                print("query")
+                # print("query")
                 client_to_send ,documents = self.receive_query_from_client(self,text,ip_client)
                 response = f'{documents}'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (client_to_send,8004))  # Envía la respuesta al cliente
-                print(f"{documents} sended to {(client_to_send,8004)}")
+                # print(f"{documents} sended to {(client_to_send,8004)}")
                 
             elif option == FIND_LEADER:
-                print("finding leader")
+                # print("finding leader")
                 response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
-                logger.debug(f"enviando respuesta {response} a {(ip_client,8003)}")
+                # logger.debug(f"enviando respuesta {response} a {(ip_client,8003)}")
                 broadcast_socket.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
 
     def handle_client(self, client_socket):
         request = client_socket.recv(1024).decode('utf-8')
-        logger.debug(f"Solicitud recibida: {request}")
+        # logger.debug(f"Solicitud recibida: {request}")
         client_socket.sendall(b"Solicitud recibida")
         client_socket.close()
 
@@ -188,7 +188,7 @@ class Node(ChordNode):
                     state["timeout_timer"].cancel()
                 while not Node.responses_queue.empty():
                     state["responses_list"].append(Node.responses_queue.get())
-                logger.debug("Respuestas recibidas:", state["responses_list"])
+                # logger.debug("Respuestas recibidas:", state["responses_list"])
 
     @classmethod
     def __send_answer_to_client(cls, hashed_query, ip_client):
@@ -211,12 +211,12 @@ class Node(ChordNode):
 
             while True:
                 conn, addr = s.accept()
-                logger.debug(f'new connection from {addr}')
+                # logger.debug(f'new connection from {addr}')
 
                 data = conn.recv(1024).decode().split(',')
                 
                 if data == ['']:
-                    logger.debug(f"No hay data de {addr}")
+                    # logger.debug(f"No hay data de {addr}")
                     continue
                     
 

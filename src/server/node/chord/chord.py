@@ -5,6 +5,8 @@ import time
 import logging
 import hashlib
 import logging
+from node.bully import BullyBroadcastElector
+
 
 # from node.leader import Leader
 
@@ -14,8 +16,8 @@ logging.basicConfig(level=logging.DEBUG,
 
 logger = logging.getLogger(__name__)
 
-MCAST_PORT = '8002'
-MCAST_ADRR = '224.0.0.1'
+# MCAST_PORT = '8002'
+# MCAST_ADRR = '224.0.0.1'
 
 BCAST_PORT = '8002'
 
@@ -159,11 +161,14 @@ class ChordNode():
         # threading.Thread(target=self.stabilize, daemon=True).start()
         # threading.Thread(target=self._receiver_broadcast, daemon=True).start()
         # threading.Thread(target=self.make_pow, args=(ITERATION, BASE_HASH, DIFFICULTY, self.id, PUB_PORT), daemon=True).start()
-        threading.Thread(target=self.pow, daemon=True).start()
+        # threading.Thread(target=self.pow, daemon=True).start()
         # threading.Thread(target=self.elections, daemon=True).start()
         # threading.Thread(target=self.mcast_server).start()
         # threading.Thread(target=self.election_loop, daemon=True).start()
         # threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
+        self.e = BullyBroadcastElector()
+        self.e.loop()
+        
 
     # Helper method to check if a value is in the range (start, end]
     def _inbetween(self, k: int, start: int, end: int) -> bool:
@@ -179,15 +184,8 @@ class ChordNode():
             # s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), self.port))
             s.sendto(f'{op},{data}'.encode(), (str(socket.INADDR_BROADCAST), int(BCAST_PORT)))
             s.close()
-            logger.debug(f'Broadcast sended')
+            # logger.debug(f'Broadcast sended')
 
-#__________________________________________BULLY________________________________________________________________________________#
-    # def mcast_call(self, message: str, mcast_addr: str, port: int):
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
-    #     s.sendto(message.encode(), (mcast_addr, port))
-    #     s.close()
-#__________________________________________BULLY_________________________________________________________________________________#
 
     # # Method to find the successor of a given id
     # def find_succ(self, id: int) -> 'ChordNodeReference':
@@ -254,7 +252,7 @@ class ChordNode():
     def join(self, node: 'ChordNodeReference'):
         """Join a Chord network using 'node' as an entry point."""
         self.pred = None
-        logger.debug(f'join node.find_successor {self.ip}')
+        # logger.debug(f'join node.find_successor {self.ip}')
         self.succ = node.find_successor(self.id)
         if self.succ:
             self.succ.notify(self.ref)
@@ -299,7 +297,7 @@ class ChordNode():
 
     # Reciev boradcast message
     def _receiver_broadcast(self):
-        print("recive broadcast de chord")
+        # print("recive broadcast de chord")
         
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # s.bind(('', int(self.port)))
@@ -331,14 +329,15 @@ class ChordNode():
                         new_node_ref = ChordNodeReference(msg[2])
                         new_node_ref._send_data(JOIN, {self.ref})
                 
-                if option == FIND_LEADER:
-                    print("Entra al if correcto en chord")
+                if option == FIND_LEADER and self.ImLeader:
+                    
+                    # print("Entra al if correcto en chord")
                     # Asegúrate de que msg[1] contiene la dirección IP del cliente que hizo el broadcast
                     ip_client = msg[1].strip()  # Elimina espacios en blanco
                     response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
-                    print("-----------------------------------------")
-                    print(f"enviando respuesta {response} a {(ip_client,8003)}")
-                    print("-----------------------------------------")
+                    # print("-----------------------------------------")
+                    # print(f"enviando respuesta {response} a {(ip_client,8003)}")
+                    # print("-----------------------------------------")
 
                     s.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
                     
@@ -346,219 +345,94 @@ class ChordNode():
             except Exception as e:
                 print(f"Error in _receiver_boradcast: {e}")
                 
-     # Reciev boradcast message
-    def pow(self):
-        PUB_PORT = '8005'
-        # ID = str(socket.gethostbyname(socket.gethostname()))
+    #  # Reciev boradcast message
+    # def pow(self):
+    #     PUB_PORT = '8005'
+    #     # ID = str(socket.gethostbyname(socket.gethostname()))
 
-        # print(f"Running on {ID}")
-        DIFFICULTY = 6
-        ITERATION = 1
+    #     # print(f"Running on {ID}")
+    #     DIFFICULTY = 6
+    #     ITERATION = 1
         
-        while True:
+    #     while True:
         
-            t = threading.Thread(target=self.make_pow, args=(ITERATION, BASE_HASH, DIFFICULTY, self.id, PUB_PORT), daemon=True).start()
+    #         t = threading.Thread(target=self.make_pow, args=(ITERATION, BASE_HASH, DIFFICULTY, self.id, PUB_PORT), daemon=True)
+    #         t.start()
             
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.bind(('', int(PUB_PORT)))
+    #         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #         s.bind(('', int(PUB_PORT)))
     
-            # logger.debug(f'running _reciev_broadcast running')
+    #         # logger.debug(f'running _reciev_broadcast running')
     
-            while True:
-                msg, addr = s.recvfrom(1024)
-    
-                logger.debug(f'Received broadcast POW: {self.ip}')
-    
-                msg = msg.decode().split(',')
-                logger.debug(f'received broadcast msg POW: {msg}')
-    
-                try:
-                    option = int(msg[0])
-                            
-                    if option == POW:
-                        timer = 20
-                        # while True:
-                        #     msg, winner = s.recvfrom(1024)
-                        id, iteration, initial_hash, nonce, curr_hash = msg[1:]
-                        print("Recieved: ", id, iteration, initial_hash, nonce, curr_hash, "from", addr)
-                        sha = hashlib.sha256() 
-                        sha.update(str(initial_hash).encode()+str(nonce).encode())
-                        hash = sha.hexdigest()
-                        if hash == curr_hash and hash[0:DIFFICULTY] == "0" * DIFFICULTY:
-                            logger.debug(f"Leader Elected: {addr}")
-                            # we have a winner
-                        #___________________________________mio__________________________________________________________#    
-                            self.Leader = addr
-                        #________________________________________________________________________________________________#    
-                            logger.debug(f'POW id: {id}')
-                            logger.debug(int(id) == self.id)
-                            if int(id) == self.id:
-                                logger.debug("I'm the leader")
-                                time.sleep(4)
-                                timer = 16
-                            # for a valid hash and a more recent iteration, we update the new iteration
-                            elif int(iteration) > ITERATION:
-                                ITERATION = int(iteration)
-                            ITERATION += 1
-                            # p.terminate()        
-                            # p.join()
-                            # self.pow_thread.start() #? Aqui va a dar excepcion pero lo que se quiere es q se detenga
-                            # self.pow_thread.join()
-                            time.sleep(timer)
-                            break
-                except Exception as e:
-                    print(f"Error in _receiver_boradcast: {e}")
-    
-#____________________________________________BULLY___________________________________________________________________________________#
-    # def election_bully(self, id, otherId):
-    #     return int(id.split('.')[-1]) > int(otherId.split('.')[-1])
-
-    # def election_call(self):
-    #     threading.Thread(target=self.mcast_call, args=(f'{ELECTION}', MCAST_ADRR, MCAST_PORT)).start()
-    #     print("Election Started")
-
-    # def election_winner_call(self):
-    #     threading.Thread(target=self.mcast_call, args=(f'{ELECTION_WINNER}', MCAST_ADRR, MCAST_PORT))
-    #     print("Elected Leadder")
-
-    # def election_loop(self):
-    #     counter = 0
-    #     while True:
-    #         if not self.Leader and not self.InElection:
-    #             self.election_call()
-    #             self.InElection = True
-
-    #         elif self.InElection:
-    #             counter += 1
-    #             if counter == 10:
-    #                 if not self.Leader and self.ImTheLeader:
-    #                     self.ImTheLeader = True
-    #                     self.Leader = self.id
-    #                     self.InElection = False
-    #                     self.election_winner_call()
-    #                 counter = 0
-    #                 self.InElection = False
-
-    #         else:
-    #             print(f'Leader: {self.Leader}')
-
-    #         print(f"{counter} waiting")
-    #         time.sleep(1)
-
-    # def mcast_server(self):
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     membership = socket.inet_aton(self.mcast_adrr) + socket.inet_aton('0.0.0.0')
-    #     s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
-    #     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    #     s.bind(('', int(MCAST_PORT)))
-
-    #     while True:
-    #         try:
-    #             msg, sender = s.recvfrom(1024)
-    #             if not msg:
-    #                 continue  # Ignorar mensajes vacíos
-
-    #             logger.debug(f'multcast msg: {msg}')
-    #             newId = sender[0]
-    #             msg = msg.decode("utf-8")
-
-    #             if msg.isdigit():
-    #                 msg = int(msg)
-    #                 if msg == ELECTION and not self.InElection:
-    #                     print(f"Election message received from: {newId}")
-
-    #                     if not self.InElection:
-    #                         self.InElection = True
-    #                         self.Leader = None
-    #                         self.election_call()
-
-    #                     if self.election_bully(self.id, newId):
-    #                         s_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #                         s_send.sendto(f'{ELECTION_OK}'.encode(), (newId, self.port))
-
-    #                 elif msg == ELECTION_OK:
-    #                     print(f"OK message received from: {newId}")
-    #                     if self.Leader and self.election_bully(newId, self.Leader):
-    #                         self.Leader = newId
-    #                     self.ImTheLeader = False
-
-    #                 elif msg == ELECTION_WINNER:
-    #                     print(f"Winner message received from: {newId}")
-    #                     if not self.election_bully(self.id, newId) and (not self.Leader or self.election_bully(newId, self.Leader)):
-    #                         self.Leader = newId
-    #                         if(self.Leader != self.id):
-    #                             self.ImTheLeader = False
-    #                         self.InElection = False
-
-    #         except Exception as e:
-    #             print(f"Error in server_thread: {e}")
-                
-#__________________________________________________BULLY_____________________________________________________________________________#
-
-    def make_pow(self, iteration, initial_hash, difficulty, selfId, port):
-        print("pow started")
-        nonce = 0
-        sha = hashlib.sha256() 
-        sha.update(str(initial_hash).encode()+str(nonce).encode())
-        prev_hash = sha.hexdigest()
-        while prev_hash[0:difficulty] != "0" * difficulty:
-            nonce += 1
-            sha = hashlib.sha256() 
-            sha.update(str(initial_hash).encode()+str(nonce).encode())
-            prev_hash = sha.hexdigest()
-
-        print(f'{selfId},{iteration},{initial_hash},{nonce},{prev_hash}')
-        
-        # self._send_broadcast(POW, f'{selfId},{iteration},{initial_hash},{nonce},{prev_hash}')
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, )
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.sendto(f'{POW},{selfId},{iteration},{initial_hash},{nonce},{prev_hash}'.encode(), (str(socket.INADDR_BROADCAST), int(port)))
-        time.sleep(3)
-        s.close()
-
-#________________________________❌Error: UnboundLocalError: cannot access local variable 'ITERATION' where it is not associated with a value ______________#
-    # def elections(self):
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     s.bind(('', int(PUB_PORT)))
-
-    #     while True:
-    #         # p = multiprocessing.Process(target=self.make_pow,args=(ITERATION, BASE_HASH, DIFFICULTY, self.id, PUB_PORT))
-    #         # p.start()
-    #         # t = threading.Thread(target=self.make_pow, args=(ITERATION, BASE_HASH, DIFFICULTY, self.id, PUB_PORT))
-    #         # t.start()
-                
-    #         timer = 20
     #         while True:
-    #             msg, winner = s.recvfrom(1024)
-    #             id,iteration_,initial_hash,nonce,curr_hash = msg.decode().split(",")
+    #             msg, addr = s.recvfrom(1024)
+    
+    #             # logger.debug(f'Received broadcast POW: {self.ip}')
+    
+    #             msg = msg.decode().split(',')
+    #             # logger.debug(f'received broadcast msg POW: {msg}')
+    
+    #             try:
+    #                 option = int(msg[0])
+                            
+    #                 if option == POW:
+    #                     timer = 20
+    #                     # while True:
+    #                     #     msg, winner = s.recvfrom(1024)
+    #                     id, iteration, initial_hash, nonce, curr_hash = msg[1:]
+    #                     # print("Recieved: ", id, iteration, initial_hash, nonce, curr_hash, "from", addr)
+    #                     sha = hashlib.sha256() 
+    #                     sha.update(str(initial_hash).encode()+str(nonce).encode())
+    #                     hash = sha.hexdigest()
+    #                     if hash == curr_hash and hash[0:DIFFICULTY] == "0" * DIFFICULTY:
+    #                         logger.debug(f"Leader Elected: {addr}")
+    #                         # we have a winner
+    #                     #___________________________________mio__________________________________________________________#    
+    #                         self.Leader = addr
+    #                     #________________________________________________________________________________________________#    
+    #                         # logger.debug(f'POW id: {id}')
+    #                         # logger.debug(int(id) == self.id)
+    #                         if int(id) == self.id:
+    #                             logger.debug("I'm the leader")
+                                
+    #                             self.ImLeader = True
+                                
+    #                             time.sleep(4)
+    #                             timer = 16
+    #                         # for a valid hash and a more recent iteration, we update the new iteration
+    #                         elif int(iteration) > ITERATION:
+    #                             ITERATION = int(iteration)
+    #                             self.ImLeader = False
+    #                         ITERATION += 1
+    #                         # p.terminate()        
+    #                         # p.join()
+    #                         # self.pow_thread.start() #? Aqui va a dar excepcion pero lo que se quiere es q se detenga
+    #                         t.join(timeout=2)
+    #                         time.sleep(timer)
+    #                         break
+    #             except Exception as e:
+    #                 print(f"Error in _receiver_boradcast: {e}")
 
-    #             print("Recieved: ", id,iteration_,initial_hash,nonce,curr_hash, "from", winner)
+    # def make_pow(self, iteration, initial_hash, difficulty, selfId, port):
+    #     print("pow started")
+    #     nonce = 0
+    #     sha = hashlib.sha256() 
+    #     sha.update(str(initial_hash).encode()+str(nonce).encode())
+    #     prev_hash = sha.hexdigest()
+    #     while prev_hash[0:difficulty] != "0" * difficulty:
+    #         nonce += 1
+    #         sha = hashlib.sha256() 
+    #         sha.update(str(initial_hash).encode()+str(nonce).encode())
+    #         prev_hash = sha.hexdigest()
 
-    #             sha = hashlib.sha256() 
-    #             sha.update(str(initial_hash).encode()+str(nonce).encode())
-    #             hash = sha.hexdigest()
-    #             if hash == curr_hash and hash[0:DIFFICULTY] == "0" * DIFFICULTY:
-    #                 print(f"Leader Elected: {winner}")
-    #             #_________________________________________________MIO____________________________________________________________#
-    #                 self.Leader = winner
-    #             #________________________________________________________________________________________________________________#
-    #                 # we have a winner
-    #                 if id == self.id:
-    #                     print("I'm the leader")
-    #                 #_________________________________________________MIO____________________________________________________________#
-    #                     self.ImLeader = True
-    #                 #________________________________________________________________________________________________________________#
-    #                     time.sleep(4)
-    #                     timer = 16
-    #                 # for a valid hash and a more recent iteration, we update the new iteration
-    #                 elif int(iteration_) > ITERATION:
-    #                     ITERATION = int(iteration_)
-    #                 ITERATION += 1
-    #                 # p.terminate()        
-    #                 # p.join()
-    #                 #TODO Aqui hay que poner el equivalente de las dos lineas anteriores pero para hilos
-    #                 time.sleep(timer)
-    #                 break
-    #_____________________________________________________________________________________________________________________________________________________________#
+    #     (f'{selfId},{iteration},{initial_hash},{nonce},{prev_hash}')
+        
+    #     # self._send_broadcast(POW, f'{selfId},{iteration},{initial_hash},{nonce},{prev_hash}')
+
+    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, )
+    #     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #     s.sendto(f'{POW},{selfId},{iteration},{initial_hash},{nonce},{prev_hash}'.encode(), (str(socket.INADDR_BROADCAST), int(port)))
+    #     time.sleep(3)
+    #     s.close()
+        
+        
