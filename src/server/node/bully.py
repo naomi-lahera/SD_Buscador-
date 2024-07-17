@@ -31,7 +31,7 @@ class BullyBroadcastElector:
     def election_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{ELECTION}', self.port))
         t.start() 
-        print("Election Started")
+        # print("Election Started")
 
     def winner_call(self):
         t = threading.Thread(target=broadcast_call,args=(f'{WINNER}', self.port))
@@ -64,7 +64,8 @@ class BullyBroadcastElector:
                     self.InElection = False
 
             else:
-                print(f'Leader: {self.Leader}')
+                # print(f'Leader: {self.Leader}')
+                pass
 
             # print(f"{counter} waiting")
             time.sleep(1)
@@ -87,7 +88,7 @@ class BullyBroadcastElector:
                 if msg.isdigit():
                     msg = int(msg)
                     if msg == ELECTION and not self.InElection:
-                        print(f"Election message received from: {newId}")
+                        # print(f"Election message received from: {newId}")
 
                         if not self.InElection:
                             self.InElection = True
@@ -99,7 +100,7 @@ class BullyBroadcastElector:
                             s_send.sendto(f'{OK}'.encode(), (newId, self.port))
 
                     elif msg == OK:
-                        print(f"OK message received from: {newId}")
+                        # print(f"OK message received from: {newId}")
                         if self.Leader and self.bully(newId, self.Leader):
                             self.Leader = newId
                         self.ImTheLeader = False

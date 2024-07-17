@@ -1,4 +1,4 @@
-from node.chord.chord import ChordNode, ChordNodeReference
+from node.chord.chord import ChordNode, ChordNodeReference, getShaRepr
 import threading
 import socket
 from typing import List
@@ -23,117 +23,111 @@ FIND_PREDECESSOR = 2
 GET_SUCCESSOR = 3
 GET_PREDECESSOR = 4
 NOTIFY = 5
-INSERT_NODE = 6
-REMOVE_NODE = 7
-JOIN = 8
-ELECTION = 9
-ELECTION_OK = 10
-ELECTION_WINNER = 11
-CHECK_PREDECESSOR = 12
-CLOSEST_PRECEDING_FINGER = 13
-STORE_KEY = 14
-RETRIEVE_KEY = 15
-SEARCH = 16
-REQUEST_BROADCAST_QUERY = 17
+CHECK_NODE = 6
+CLOSEST_PRECEDING_FINGER = 7
+STORE_KEY = 8
+RETRIEVE_KEY = 9
+SEARCH = 10
+JOIN = 11
+NOTIFY_PRED = 12
+GET = 13
+INSERT = 14
+REMOVE = 15
+EDIT = 16
+CHECK_DOCKS = 17
 FIND_LEADER = 18
-PING = 19
+REQUEST_BROADCAST_QUERY = 19
 QUERY_FROM_CLIENT = 20
 REPLICATE = 21
 ADD_DOC = 22
-CHECK_LEADER = 23
+STABILIZE_DATA_2 = 23
 STABILIZE_DATA_1 = 24
-STABILIZE_DATA_2 = 22
 
-NOTIFY_PRED = 30
-CHECK_NODE = 31
 
-def read_or_create_db(ip):
-    ip = str(ip)
-    folder_path = 'src/server/data/nodes_data/'
-    full_path = os.path.join(folder_path, ip)
+def read_or_create_db(controller):
+    connect = controller.connect()
     
-    if os.path.exists(f"{full_path}/database.db"):
-        logger.debug("El nodo ya existia")
-        return 
-    
-    else:
-        # os.makedirs(full_path)
-        # logger.debug(f"Carpeta creada en: {full_path}")
-        try:
-            conexion = sqlite3.connect(os.path.join(full_path, 'database.db'))
-            logger.debug("Conexión a la base de datos exitosa")
-        except Exception as e:
-            logger.debug(f"Error al conectar a la base de datos: {e}")
-            return
-    
-        cursor = conexion.cursor()
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS documentos (
+    cursor = connect.cursor()
+    cursor.execute('''
+        DROP TABLE IF EXISTS documentos;
+        ''')
+    cursor.execute('''
+        CREATE TABLE documentos (
         	id INTEGER PRIMARY KEY,
-        	texto_documento TEXT NOT NULL,
+        	text TEXT NOT NULL,
         	tf TEXT
         );
         ''')
         
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS replica_succ (
+    cursor.execute('''
+        DROP TABLE IF EXISTS replica_succ;
+        ''')
+    cursor.execute('''
+        CREATE TABLE replica_succ (
         	id INTEGER PRIMARY KEY,
-        	texto_documento TEXT NOT NULL,
+        	text TEXT NOT NULL,
         	tf TEXT
         );
         ''')
         
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS replica_pred (
+    cursor.execute('''
+        DROP TABLE IF EXISTS replica_pred;
+        ''')
+    cursor.execute('''
+        CREATE TABLE replica_pred (
         	id INTEGER PRIMARY KEY,
-        	texto_documento TEXT NOT NULL,
+        	text TEXT NOT NULL,
         	tf TEXT
         );
         ''')
-        conexion.commit()
-        conexion.close()
-        logger.debug("La base de datos se creó correctamente")    
-
+    connect.commit()
+    connect.close()    
 class Node(ChordNode):
     responses_queue = Queue()
     query_states = {}
     query_states_lock = threading.Lock()
 
-    def __init__(self, model: ModelSearchInterface, controller: BaseController, ip: str, port: int = 8001, m: int = 160, leader_ip='172.17.0.2', leader_port=8002):
-        read_or_create_db(ip)
-        super().__init__(controller, ip, port, m)
+    def __init__(self, ip: str, port: int = 8001, m: int = 4,leader_ip = '172.17.0.2',leader_port = 8002):
+        super().__init__(ip, port, m)
+        self.controller = DocumentoController(self.ip)
+        read_or_create_db(self.controller)
         self.logger = logging.getLogger(__name__)
-        self.controller = controller
-        self.model = model
-        self.data = {}
         self.is_leader = False
+        self.data = {}
+        self.model = Retrieval_Vectorial()
         self.leader_ip = leader_ip
         self.leader_port = leader_port
-
-          # Iniciar servidor
-        threading.Thread(target=self._reciev_broadcast, daemon=True).start()
-        threading.Thread(target=self.start_server, daemon=True).start()
-        threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
+        threading.Thread(target=self.start_server, daemon=True).start()  # Start server thread
+        threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
+        # threading.Thread(target=self.fix_fingers, daemon=True).start()  # Start fix fingers thread
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
-        threading.Thread(target=self.stabilize, daemon=True).start()
+        threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
+        threading.Thread(target=self._reciev_broadcast, daemon=True).start() ## Reciev broadcast message
+
        
-    def add_doc(self, document, table = -1):
-        return self.controller.create_document(document, table)
     
-    def upd_doc(self,id,text):
-        return self.controller.update_document(id,text)
+    def add_doc(self, id, document, table):
+        return self.controller.create_document(id, document, table)
     
-    def del_doc(self,id):
-        return self.controller.delete_document(id)
+    def upd_doc(self, id, text, table):
+        return self.controller.update_document(id, table, text)
     
-    def get_docs(self):
-        return self.controller.get_documents()
+    def del_doc(self, id, table):
+        return self.controller.delete_document(id, table)
     
-    def get_doc_by_id(self,id):
+    def get_docs(self, table):
+        return self.controller.get_documents(table)
+    
+    def get_doc_by_id(self, id):
         return self.controller.get_document_by_id(id)
     
-    def search(self, query) -> List:
-        return self.model.retrieve(query,self.controller)
+    def search(self, query):
+        return self.model.retrieve(query, self.controller)
+    
+    def notify(self, node: 'ChordNodeReference'):
+        super().notify(node)
+        self.check_docs()
+        self.pred._send_data(CHECK_DOCKS)
     
     def get_docs_between(self, tables, min, max):
         return self.controller.get_docs_between(tables, min, max)
@@ -143,7 +137,7 @@ class Node(ChordNode):
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         broadcast_socket.bind(('', self.port+1))
         while True:
-            print(f"PUERTO: {self.port+1}")
+            # print(f"PUERTO: {self.port+1}")
             msg, client_address = broadcast_socket.recvfrom(1024)
             logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
             logger.debug("\n****************************************")
@@ -153,8 +147,14 @@ class Node(ChordNode):
             option = int(option)
             
             if option == QUERY_FROM_CLIENT:
-                print("query")
+                print("RECIBIDO QUERY")
+                # print(f"RECIBIDO QUERY sended to {(client_to_send,8004)}")
+                response = f'Hola SERVER'.encode()  # Prepara la respuesta con IP y puerto del líder
+                broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
+                return
+                #TODO: Hay q hacer esto.....
                 client_to_send ,documents = self.receive_query_from_client(self,text,ip_client)
+                
                 response = f'{documents}'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (client_to_send,8004))  # Envía la respuesta al cliente
                 print(f"{documents} sended to {(client_to_send,8004)}")
@@ -212,10 +212,78 @@ class Node(ChordNode):
             del cls.query_states[hashed_query]
         return documents
     
-    def replicate(self, key: str, value: str):
-        #TODO Definir cuando estoy poniendo en mi bd y cuando es en la bd de mi sucesor o predecesor
-        self.add_doc(value)
+    # def replicate(self, key: str, value: str):
+    #     #TODO Definir cuando estoy poniendo en mi bd y cuando es en la bd de mi sucesor o predecesor
+    #     self.add_doc(value)
     
+    def check_docs(self):
+        # toma sus documentos y las replicas de su predecesor
+        my_docs = self.get_docs('documentos')
+        pred_docs = self.get_docs('replica_pred')
+
+        for doc in my_docs:
+            # si el id NO esta entre su nuevo predecesor y el, o sea le pertenece a su predecesor
+            if not self._inbetween(doc[0], self.pred.id, self.id):
+                
+                # le dice que lo inserte en sus documentos
+                self.pred._send_data(INSERT, f'documentos,{doc[1]}')
+                
+                # lo elimina de sus documentos
+                self.del_doc(doc[0], 'documentos')
+            
+            else:
+                # esta entre los 2, asi que le pertenece al sucesor y le notifica que lo replique
+                self.pred._send_data(INSERT, f'replica_succ,{doc[1]}')
+
+        
+        for doc in pred_docs:
+            # si el id NO esta entre su nuevo predecesor y el, o sea le pertenece al antiguo predecesor
+            if not self._inbetween(doc[0], self.pred.id, self.id):
+                
+                # le dice que lo replique como documento del que ahora es el predecesor del nuevo predecesor
+                self.pred._send_data(INSERT, f'replica_pred,{doc[1]}')
+
+                # lo elimina porque cambio su predecesor
+                self.del_doc(doc[0], 'replica_pred')
+
+            else:
+                # si el id esta entre su nuevo predecesor y el, o sea le pertenece a el
+                self.add_doc(doc[0], doc[1], 'documentos')
+
+                # luego lo elimina de sus replicados
+                self.del_doc(doc[0], 'replica_pred')
+
+                # despues lo mandan a replicar
+                self.pred._send_data(INSERT, f'replica_succ,{doc[1]}')
+                self.succ._send_data(INSERT, f'replica_pred,{doc[1]}')
+
+    # luego aqui entra el predecesor
+    def check_docs_pred(self):
+        
+        # toma sus documentos y las replicas de su sucesor
+        my_docs = self.get_docs('documentos')
+        succ_docs = self.get_docs('replica_succ')
+
+        for doc in my_docs:
+           
+            # los documentos que me pertenecen los replico a mi nuevo sucesor
+            self.succ._send_data(INSERT, f'replica_pred,{doc[1]}')
+
+
+        for doc in succ_docs:
+            # si el id NO esta entre su nuevo sucesor y el, o sea le pertenece al antiguo sucesor
+            if not self._inbetween(doc[0], self.id, self.succ.id):
+
+                # le dice que lo replique como documento del que ahora es el sucesor del nuevo sucesor
+                self.succ._send_data(INSERT, f'replica_succ,{doc[1]}')
+                
+                # lo elimina porque cambio su sucesor
+                self.del_doc(doc[0], 'replica_succ')
+            
+            else:
+                # si el id esta entre su nuevo sucesor y el, o sea le pertenece al nuevo sucesor
+                self.succ._send_data(INSERT, f'documentos,{doc[1]}')
+
     def data_receive(self, conn: socket, addr, data: list):
         data_resp = None 
         option = int(data[0])
@@ -250,23 +318,8 @@ class Node(ChordNode):
             data_resp = self.closest_preceding_finger(id)
 
         elif option == STORE_KEY:
-            logger.debug('STORE_KEY')
             key, value = data[1], data[2]
             self.data[key] = value
-            self.add_doc(value) #? Annadir el documento a la base de datos
-            
-            # Replicar en mi predecesor y en mi sucesor
-            self.pred.replicate(key, value, 0) # 0 = prdecesor 
-            self.succ.replicate(key, value, 1) # 1 = sucesor
-            
-        elif option == REPLICATE:
-            key, value, node = data[1], data[2], data[3]
-            self.replicate(key, value, node)
-            
-        elif option == ADD_DOC and self.e.ImTheLeader:
-            logger.debug('ADD_DOC')
-            key, value = data[1], data[2]
-            self.store_key(key, value)
 
         elif option == RETRIEVE_KEY:
             key = data[1]
@@ -275,24 +328,75 @@ class Node(ChordNode):
         elif option == JOIN and self.id == self.succ.id:
             ip = data[2]
             self.join(ChordNodeReference(ip, self.port))
-            
-        elif option == CHECK_LEADER and self.e.ImTheLeader:
-            data = self.ref
 
-        elif option == STABILIZE_DATA_1:
-            own = data[1]
-            replicate = data[2]
-            self.stabilize_data_step1(own, replicate)
+        elif option == INSERT:
+            table = data[1]
+            text = ','.join(data[2:])
+            logger.debug(f'\n\nTHE TEXT:\n\n{text}\n\n')
+            id = getShaRepr(','.join(data[2:min(len(data),6)]))
+            self.add_doc(id, text, table)
             
-        elif option == STABILIZE_DATA_2:
-            own = data[1]
-            replicate = data[2]
-            self.stabilize_data_step2(own, replicate)
+            if table == 'documentos':
+                self.pred._send_data(INSERT, f'replica_succ,{text}')
+                self.succ._send_data(INSERT, f'replica_pred,{text}')
 
-        if data_resp:
+        elif option == GET:
+            id = data[1]
+            data_resp = self.get_doc_by_id(id)[0]
+
+        elif option == REMOVE:
+            table = data[1]
+            id = data[2]
+            data_resp = self.del_doc(id, table)
+            
+            if table == 'documentos':
+                self.pred._send_data(REMOVE, f'replica_succ,{id}')
+                self.succ._send_data(REMOVE, f'replica_pred,{id}')
+
+        elif option == EDIT:
+            table = data[1]
+            for i in range(2, len(data)):
+                if data[i] == '---':
+                    id = ','.join(data[1:i])
+                    text = ','.join(data[i+1:])
+                    self.upd_doc(id, text, table)
+                    
+                    if table == 'documentos':
+                        self.pred._send_data(EDIT, f'replica_succ,{id},{text}')
+                        self.succ._send_data(EDIT, f'replica_pred,{id},{text}')
+                    break
+
+        elif option == SEARCH:
+            query = ','.join(data[1:])
+            logger.debug(f'\n\n{query}\n\n')
+            response = self.search(query)
+            id = response[0][1]
+            text = response[0][0][0]
+            text = text.split()
+            text = text[:min(20, len(text))]
+            text = ' '.join(text)
+            data_resp = (id, text)
+            logger.debug(data_resp)
+
+        elif option == CHECK_DOCKS:
+            self.check_docs_pred()
+
+
+
+
+        if data_resp and option == GET:
+            response = data_resp.encode()
+            conn.sendall(response)
+
+        elif data_resp and option == SEARCH:
+            response = f'{data_resp[0]},{data_resp[1]}'.encode()
+            conn.sendall(response)
+
+        elif data_resp:
             response = f'{data_resp.id},{data_resp.ip}'.encode()
             conn.sendall(response)
         conn.close()
+
 
     def start_server(self):
 
@@ -315,98 +419,5 @@ class Node(ChordNode):
                 data = conn.recv(1024).decode().split(',') # Divide el string del mensaje por las ","
 
                 threading.Thread(target=self.data_receive, args=(conn, addr, data)).start()
-
-     # Start server method to handle incoming requests
-    #def start_server(self):
-    #    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #        s.bind((self.ip, self.port))
-    #        s.listen(10)
-    #        
-    #        while True:
-    #            conn, addr = s.accept()
-    #            logger.debug(f'new connection from {addr}')
-#
-    #            data = conn.recv(1024).decode().split(',')
-    #            
-    #            if data == ['']:
-    #                logger.debug(f"No hay data de {addr}")
-    #                continue
-    #                
-#
-    #            data_resp = None
-    #            option = int(data[0])
-    #            logger.debug(f'from {addr} option {option}')
-#
-    #            if option == FIND_SUCCESSOR:
-    #                id = int(data[1])
-    #                data_resp = self.find_succ(id)
-    #            elif option == FIND_PREDECESSOR:
-    #                id = int(data[1])
-    #                data_resp = self.find_pred(id)
-    #            elif option == GET_SUCCESSOR:
-    #                data_resp = self.succ if self.succ else self.ref
-    #            elif option == GET_PREDECESSOR:
-    #                data_resp = self.pred if self.pred else self.ref
-    #            elif option == NOTIFY:
-    #                # id = int(data[1])
-    #                ip = data[2]
-    #                self.notify(ChordNodeReference(ip, self.port))
-    #            elif option == NOTIFY:
-    #                ip = data[2]
-    #                self.notify(ChordNodeReference(ip, self.port))
-    #            elif option == CHECK_PREDECESSOR:
-    #                pass
-    #            elif option == CLOSEST_PRECEDING_FINGER:
-    #                id = int(data[1])
-    #                data_resp = self.closest_preceding_finger(id)
-    #            elif option == STORE_KEY:
-    #                key, value = data[1], data[2]
-    #                self.data[key] = value
-    #            elif option == RETRIEVE_KEY:
-    #                key = data[1]
-    #                data_resp = self.data.get(key, '')
-    #            elif option == SEARCH:
-    #                query = data[1]
-    #                data_resp = self.search(query)
-    #            # elif option == JOIN:
-    #            #     # logger.debug(f'JOIN data msg : {data[0]} - {self.ip}')
-    #            #     chord_node_ref = ChordNodeReference(data[2])
-                #     if chord_node_ref:
-                #         logger.debug(f'join to the chord network - {self.ip}')
-                #         # logger.debug(f'I have the chord node ip to for join to the chord network : {self.ip}')
-                #         logger.debug(f'node_reference - {chord_node_ref.ip}')
-                #         self.join(chord_node_ref)
-                #elif option == JOIN and not self.succ:
-                #    ip = data[2]
-                #    self.join(ChordNodeReference(ip, self.port))
-#
-                #elif option == NOTIFY_PRED:
-                #    ip = data[2]
-                #    self.notify_pred(ChordNodeReference(ip, self.port))
-#
-                #elif option == CHECK_NODE: data_resp = self.ref
-#
-                #elif option == CLOSEST_PRECEDING_FINGER:
-                #    id = int(data[1])
-                #    data_resp = self.closest_preceding_finger(id)
-                ## elif option == FIND_LEADER and self.is_leader:
-                ##     logger.debug("Entra al if correcto")
-                ##     response = f'{self.ip}'.encode()
-                ##     conn.sendall(response)
-                #    
-                #if data_resp:
-                #    response = f'{data_resp.id},{data_resp.ip}'.encode()
-                #    conn.sendall(response)
-                #conn.close()
-                
-    def run(self):
-        if self.is_leader:
-            threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
-            self.listen_for_clients()
             
-    # def stabilize_data_succ(self, new_pred: ChordNodeReference):
-    #     store = self.get_docs_between([-1, 0], self.pred.id, new_pred.id) # llaves que tiene que guardar el actual predecesor own_pred_keys[old_predeccesro_id : new_predeccesor_id - 1]
-    #     new_pred_repli_succ = own_keys = self.get_docs_between([-1, 0], new_pred.id, self.id)  # own_pred_keys[new_predeccesor_id : self.id - 1]
-        
         

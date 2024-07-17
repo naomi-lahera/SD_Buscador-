@@ -4,25 +4,34 @@ import sys
 # from node.chord.chord import ChordNodeReference
 from logic.models.retrieval_vectorial import Retrieval_Vectorial
 from data_access_layer.controller_bd import DocumentoController
-from node.client_copy import Client   
+from node.client import Client   
 # from node.client import Client   
 # from node.chord.chord import ChordNodeReference
 
 if __name__ == "__main__":
     ip = socket.gethostbyname(socket.gethostname())
+    print(f"Devuelve : {ip}")
     
     if len(sys.argv) >= 2 and sys.argv[1] == '-c': # -c = new client
         # Inicializa y ejecuta el cliente
         # client_ip = '172.17.2.2'
         client = Client()
+        client.send_insert_to_node("Hi Client")
+        # client.send_insert_to_node("172.17.0.2")
+        # client.send_insert_to_node("172.17.0.3",'172.17.0.3')
+        # client.send_insert_to_node("172.17.0.4",'172.17.0.4')
+        # client.send_insert_to_node("172.17.0.5",'172.17.0.5')
+        client.send_query_to_leader("Hi leader!!!")
+        
+        
         # client.send_query_to_leader("I like science")
     elif len(sys.argv) == 1:
-        node = Node(Retrieval_Vectorial(),DocumentoController(ip),ip)
+        node = Node(ip)
         
     elif len(sys.argv) >= 2 and sys.argv[1] == '-n': # -n = new node
         
-        node = Node(Retrieval_Vectorial(),DocumentoController(ip),ip)
-        node.joinwr()
+        node = Node(ip)
+        node.join_CN()
         
     
        # if len(sys.argv) >= 2:
