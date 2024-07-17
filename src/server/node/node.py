@@ -38,6 +38,9 @@ REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
 PING = 19
 QUERY_FROM_CLIENT = 20
+REPLICATE = 21
+ADD_DOC = 22
+CHECK_LEADER = 23
 
 NOTIFY_PRED = 30
 CHECK_NODE = 31
@@ -112,8 +115,8 @@ class Node(ChordNode):
         threading.Thread(target=self.check_predecessor, daemon=True).start()  # Start check predecessor thread
         threading.Thread(target=self.stabilize, daemon=True).start()
        
-    def add_doc(self,document):
-        return self.controller.create_document(document)
+    def add_doc(self, document, table = -1):
+        return self.controller.create_document(document, table)
     
     def upd_doc(self,id,text):
         return self.controller.update_document(id,text)
@@ -129,6 +132,9 @@ class Node(ChordNode):
     
     def search(self, query) -> List:
         return self.model.retrieve(query,self.controller)
+    
+    def get_docs_between(self, tables, min, max):
+        return self.controller.get_docs_between(tables, min, max)
 
     def listen_for_broadcast(self):
         broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -204,6 +210,10 @@ class Node(ChordNode):
             del cls.query_states[hashed_query]
         return documents
     
+    def replicate(self, key: str, value: str):
+        #TODO Definir cuando estoy poniendo en mi bd y cuando es en la bd de mi sucesor o predecesor
+        self.add_doc(value)
+    
     def data_receive(self, conn: socket, addr, data: list):
         data_resp = None 
         option = int(data[0])
@@ -238,8 +248,23 @@ class Node(ChordNode):
             data_resp = self.closest_preceding_finger(id)
 
         elif option == STORE_KEY:
+            logger.debug('STORE_KEY')
             key, value = data[1], data[2]
             self.data[key] = value
+            self.add_doc(value) #? Annadir el documento a la base de datos
+            
+            # Replicar en mi predecesor y en mi sucesor
+            self.pred.replicate(key, value, 0) # 0 = prdecesor 
+            self.succ.replicate(key, value, 1) # 1 = sucesor
+            
+        elif option == REPLICATE:
+            key, value, node = data[1], data[2], data[3]
+            self.replicate(key, value, node)
+            
+        elif option == ADD_DOC and self.e.ImTheLeader:
+            logger.debug('ADD_DOC')
+            key, value = data[1], data[2]
+            self.store_key(key, value)
 
         elif option == RETRIEVE_KEY:
             key = data[1]
@@ -248,6 +273,9 @@ class Node(ChordNode):
         elif option == JOIN and self.id == self.succ.id:
             ip = data[2]
             self.join(ChordNodeReference(ip, self.port))
+            
+        elif option == CHECK_LEADER and self.e.ImTheLeader:
+            data = self.ref
 
 
         if data_resp:
@@ -365,3 +393,9 @@ class Node(ChordNode):
         if self.is_leader:
             threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
             self.listen_for_clients()
+            
+    def stabilize_data_succ(self, new_pred: ChordNodeReference):
+        store = self.get_docs_between([-1, 0], self.pred.id, new_pred.id) # llaves que tiene que guardar el actual predecesor own_pred_keys[old_predeccesro_id : new_predeccesor_id - 1]
+        new_pred_repli_succ = own_keys = self.get_docs_between([-1, 0], new_pred.id, self.id)  # own_pred_keys[new_predeccesor_id : self.id - 1]
+        
+        

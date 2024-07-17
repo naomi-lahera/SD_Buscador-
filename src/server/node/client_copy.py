@@ -1,6 +1,12 @@
 import socket
 import threading
 import time
+import logging
+
+# Configuración inicial de logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 #------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
@@ -8,21 +14,49 @@ LEADER_SEND_CLIENT_FIND = 2
 LEADER_SEND_CLIENT_QUERY = 3
 LEADER_POW = 4
 
+CHECK_LEADER = 23
+
 class Client:
     def __init__(self):
         self.port = 8002
         self.leader_ip = None
         self.leader_port = None
         self.update_leader_thread = threading.Thread(target=self.update_leader_info, daemon=True)
+        threading.Thread(target=self.check_leader, daemon=True).start()
         self.update_leader_thread.start()
 
+    def check_leader(self):
+        while True:
+            if self.leader_ip:
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        print(f'check_leader: {self.leader_ip}')
+                        #if op == CHECK_NODE: 
+                        s.settimeout(2)
+                        s.connect((self.leader_ip, self.leader_port))
+                        s.sendall(f'{CHECK_LEADER}'.encode('utf-8'))
+                        # logger.debug(f'_send_data end: {self.ip}')
+                        s.recv(1024)
+                        time.sleep(5)
+                except Exception as e:
+                    print('Lider caido')
+                    self.leader_ip = None
+                    self.leader_port = None
+                    threading.Thread(target=self.update_leader_info, daemon=True).start()
+                    time.sleep(5)
+                    # self.update_leader_info()
+                    # return b''
+            
+        
     def update_leader_info(self):
         """Actualiza la información del líder cada 5 segundos en un hilo separado."""
         while True:
             try:
                 leader_ip, leader_port = self.find_leader()
                 self.leader_ip, self.leader_port = leader_ip, leader_port
-                time.sleep(4)
+                print(f"Líder encontrado en {self.leader_ip}")
+                return
+                # time.sleep(4)
             except:
                 print("-----No encontro el lider-------")
                 time.sleep(4)
@@ -45,7 +79,7 @@ class Client:
         response_socket.bind(('', 8003))
         print(f"Remitente {remitter_ip}")
         try:
-            response_socket.settimeout(1)  # 10 segundos de tiempo de espera
+            response_socket.settimeout(4)  # 10 segundos de tiempo de espera
             data, addr = response_socket.recvfrom(1024)
             if data:
                 leader_info = data.decode('utf-8').split(',')

@@ -1,5 +1,5 @@
 import socket, threading, time
-
+import logging
 PORT = '8005'
 MCASTADDR = '224.0.0.1'
 ID = str(socket.gethostbyname(socket.gethostname()))
@@ -43,6 +43,11 @@ class BullyBroadcastElector:
 
         counter = 0
         while True:
+            #SIempre hay lider segun todos los nodos
+            # logging.debug(f"=========================================")
+            # logging.debug(f"El lider segun {self.id} => {self.Leader}")
+            # logging.debug(f"=========================================")
+            
             if not self.Leader and not self.InElection:
                 self.election_call()
                 self.InElection = True
@@ -86,7 +91,7 @@ class BullyBroadcastElector:
 
                         if not self.InElection:
                             self.InElection = True
-                            self.Leader = None
+                            # self.Leader = None
                             self.election_call()
 
                         if self.bully(self.id, newId):
@@ -107,6 +112,5 @@ class BullyBroadcastElector:
                                 self.ImTheLeader = False
                             self.InElection = False
 
-                time.sleep(10)
             except Exception as e:
                 print(f"Error in server_thread: {e}")

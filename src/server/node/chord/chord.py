@@ -40,6 +40,9 @@ RETRIEVE_KEY = 15
 SEARCH = 16
 REQUEST_BROADCAST_QUERY = 17
 FIND_LEADER = 18
+REPLICATE = 21
+ADD_DOC = 22
+CHECK_LEADER = 23
 NOTIFY_PRED = 30
 CHECK_NODE = 31
 #------------------------------PUERTOS------------------------------
@@ -155,6 +158,18 @@ class ChordNodeReference:
     def closest_preceding_finger(self, id: int) -> 'ChordNodeReference':
         response = self._send_data(CLOSEST_PRECEDING_FINGER, str(id)).decode().split(',')
         return ChordNodeReference(response[1], self.port)
+    
+    # Method to store a key-value pair in the current node
+    def store_key(self, key: str, value: str):
+        self._send_data(STORE_KEY, f'{key},{value}')
+
+    # Method to retrieve a value for a given key from the current node
+    def retrieve_key(self, key: str) -> str:
+        response = self._send_data(RETRIEVE_KEY, key).decode()
+        return response
+    
+    def replicate(self, key: str, value: str, node: int):
+        self._send_data(REPLICATE, f'{key},{value},{node}')
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
@@ -345,6 +360,7 @@ class ChordNode():
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
         if not self.pred or self._inbetween(node.id, self.pred.id, self.id):
+            self.stabilize_data(node)
             self.pred = node
 
 #_____________________________________________________________OK________________________________________________________________________#
@@ -373,6 +389,9 @@ class ChordNode():
             if self.id == self.succ.id:
                 self.succ = node
                 self.succ.notify(self.ref)
+                
+                self.stabilize_data(node) # Replicacion
+                
         elif self._inbetween(node.id, self.pred.id, self.id):
             self.pred.notify_pred(node)
             self.pred = node
@@ -461,7 +480,19 @@ class ChordNode():
         key_hash = getShaRepr(key)
         node = self.find_succ(key_hash)
         node.store_key(key, value)
-        self.data[key] = value  # Store in the current node
-        self.succ.store_key(key, value)  # Replicate to the successor
+        # self.data[key] = value  # Store in the current node
+        # self.succ.store_key(key, value)  # Replicate to the successor
+        
+        # Retrieve key method to get a value for a given key
+    def retrieve_key(self, key: str) -> str:
+        key_hash = getShaRepr(key)
+        node = self.find_succ(key_hash)
+        return node.retrieve_key(key)
+    
+    def stabilize_data(self, new_pred: ChordNodeReference):
+        own_pred_keys = [] # mis llaves y las de las replicas de mi predecesor organizadas por id 
+       
+        store = [] # llaves que tiene que guardar el actual predecesor own_pred_keys[ : new_predeccesor_id - 1]
+        new_pred_repli_succ = own_keys = [] # own_pred_keys[new_predeccesor_id : self.id - 1]
 
     

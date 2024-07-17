@@ -8,7 +8,7 @@ class BaseController(ABC):
         pass
 
     @abstractmethod
-    def create_document(self, texto_documento):
+    def create_document(self, texto_documento, table):
         pass
 
     @abstractmethod
@@ -29,6 +29,10 @@ class BaseController(ABC):
 
     @abstractmethod
     def delete_document(self, id):
+        pass
+    
+    @abstractmethod
+    def get_docs_between(self, tables, min, max):
         pass
 
 
