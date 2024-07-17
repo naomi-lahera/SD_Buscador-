@@ -41,6 +41,8 @@ QUERY_FROM_CLIENT = 20
 REPLICATE = 21
 ADD_DOC = 22
 CHECK_LEADER = 23
+STABILIZE_DATA_1 = 24
+STABILIZE_DATA_2 = 22
 
 NOTIFY_PRED = 30
 CHECK_NODE = 31
@@ -99,7 +101,7 @@ class Node(ChordNode):
 
     def __init__(self, model: ModelSearchInterface, controller: BaseController, ip: str, port: int = 8001, m: int = 160, leader_ip='172.17.0.2', leader_port=8002):
         read_or_create_db(ip)
-        super().__init__(ip, port, m)
+        super().__init__(controller, ip, port, m)
         self.logger = logging.getLogger(__name__)
         self.controller = controller
         self.model = model
@@ -277,6 +279,15 @@ class Node(ChordNode):
         elif option == CHECK_LEADER and self.e.ImTheLeader:
             data = self.ref
 
+        elif option == STABILIZE_DATA_1:
+            own = data[1]
+            replicate = data[2]
+            self.stabilize_data_step1(own, replicate)
+            
+        elif option == STABILIZE_DATA_2:
+            own = data[1]
+            replicate = data[2]
+            self.stabilize_data_step2(own, replicate)
 
         if data_resp:
             response = f'{data_resp.id},{data_resp.ip}'.encode()
@@ -394,8 +405,8 @@ class Node(ChordNode):
             threading.Thread(target=self.listen_for_broadcast, daemon=True).start()
             self.listen_for_clients()
             
-    def stabilize_data_succ(self, new_pred: ChordNodeReference):
-        store = self.get_docs_between([-1, 0], self.pred.id, new_pred.id) # llaves que tiene que guardar el actual predecesor own_pred_keys[old_predeccesro_id : new_predeccesor_id - 1]
-        new_pred_repli_succ = own_keys = self.get_docs_between([-1, 0], new_pred.id, self.id)  # own_pred_keys[new_predeccesor_id : self.id - 1]
+    # def stabilize_data_succ(self, new_pred: ChordNodeReference):
+    #     store = self.get_docs_between([-1, 0], self.pred.id, new_pred.id) # llaves que tiene que guardar el actual predecesor own_pred_keys[old_predeccesro_id : new_predeccesor_id - 1]
+    #     new_pred_repli_succ = own_keys = self.get_docs_between([-1, 0], new_pred.id, self.id)  # own_pred_keys[new_predeccesor_id : self.id - 1]
         
         

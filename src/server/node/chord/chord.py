@@ -6,6 +6,7 @@ import logging
 import hashlib
 
 from node.bully import BullyBroadcastElector
+from data_access_layer.controller_interface import BaseController
 
 
 # from node.leader import Leader
@@ -43,6 +44,8 @@ FIND_LEADER = 18
 REPLICATE = 21
 ADD_DOC = 22
 CHECK_LEADER = 23
+STABILIZE_DATA_1 = 24
+STABILIZE_DATA_2 = 22
 NOTIFY_PRED = 30
 CHECK_NODE = 31
 #------------------------------PUERTOS------------------------------
@@ -170,6 +173,12 @@ class ChordNodeReference:
     
     def replicate(self, key: str, value: str, node: int):
         self._send_data(REPLICATE, f'{key},{value},{node}')
+        
+    def stabilize_data_step1(self, own, replicate):
+        self._send_data(STABILIZE_DATA_1, f'{own},{replicate}')
+        
+    def stabilize_data_step2(self, own, replicate):
+        self._send_data(STABILIZE_DATA_2, f'{own},{replicate}')
 
     def __str__(self) -> str:
         return f'{self.id},{self.ip},{self.port}'
@@ -179,7 +188,7 @@ class ChordNodeReference:
 
 
 class ChordNode():
-    def __init__(self, ip: str, port: int = 8001, m: int = 4):
+    def __init__(self, controller: BaseController, ip: str, port: int = 8001, m: int = 4):
         self.id = getShaRepr(ip)
         self.ip = ip
         self.port = port
@@ -190,6 +199,8 @@ class ChordNode():
         self.finger = [self.ref] * self.m  # Finger table
         self.next = 0  # Finger table index to fix next
         self.data = {}  # Dictionary to store key-value pairs
+        
+        self.controller = controller
 
         # Start background threads for stabilization, fixing fingers, and checking predecessor
         #threading.Thread(target=self.stabilize, daemon=True).start()  # Start stabilize thread
@@ -388,9 +399,10 @@ class ChordNode():
             self.pred = node
             if self.id == self.succ.id:
                 self.succ = node
-                self.succ.notify(self.ref)
                 
                 self.stabilize_data(node) # Replicacion
+                
+                self.succ.notify(self.ref)
                 
         elif self._inbetween(node.id, self.pred.id, self.id):
             self.pred.notify_pred(node)
@@ -488,11 +500,38 @@ class ChordNode():
         key_hash = getShaRepr(key)
         node = self.find_succ(key_hash)
         return node.retrieve_key(key)
+             
+    def reasign(self,new: ChordNodeReference, node: int):
+        min = self.pred.id if node == 1 else self.id
+        max = self.id if node == 1 else self.succ.id 
+        
+        store = self.controller.get_docs_between([-1, node], min, new.id) # llaves que tiene que guardar el actual predecesor own_pred_keys[old_predeccesro_id : new_predeccesor_id - 1]
+        own_keys = self.controller.get_docs_between([-1, node], new.id, max)  # own_pred_keys[new_predeccesor_id : self.id - 1]
+        
+        return own_keys, store if node == 1 else store, own_keys
+             
+    # node dice si se va a tomar la tabla del predecesor o la del sucesor
+    def stabilize_data(self, new: ChordNodeReference):
+        keep, keep_new = self.reasign(new, 0)
+        
+        self.controller.create_doc_list(keep, -1)
+        self.controller.create_doc_list(keep_new, 0)
+        
+        new.stabilize_data_step1(keep_new, keep)
+        
+    def stabilize_data_step1(self, own, replicate):
+        keep, keep_new = self.reasign(self.succ, 1)
     
-    def stabilize_data(self, new_pred: ChordNodeReference):
-        own_pred_keys = [] # mis llaves y las de las replicas de mi predecesor organizadas por id 
-       
-        store = [] # llaves que tiene que guardar el actual predecesor own_pred_keys[ : new_predeccesor_id - 1]
-        new_pred_repli_succ = own_keys = [] # own_pred_keys[new_predeccesor_id : self.id - 1]
-
-    
+        self.controller.create_doc_list(keep + own, -1)
+        self.controller.create_doc_list(keep_new + replicate, 1)
+        
+        self.succ.stabilize_data_step2(keep_new, keep)
+        
+    def stabilize_data_step2(self, own, replicate):
+        self.controller.create_doc_list(own, -1)
+        self.controller.create_doc_list(replicate, 1)
+        
+        
+        
+        
+        

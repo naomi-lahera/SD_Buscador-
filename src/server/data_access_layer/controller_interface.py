@@ -10,6 +10,10 @@ class BaseController(ABC):
     @abstractmethod
     def create_document(self, texto_documento, table):
         pass
+    
+    @abstractmethod
+    def create_doc_list(self, doc_list, table):
+        pass
 
     @abstractmethod
     def get_documents(self):

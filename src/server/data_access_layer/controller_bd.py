@@ -42,7 +42,7 @@ class DocumentoController(BaseController):
     def connect(self):
         return sqlite3.connect(f"src/server/data/nodes_data/{self.ip}/database.db")
 
-    def create_document(self, texto_documento, table='documentos'): #? Annadi la tabla a la que se va a annadir e documento
+    def create_document(self, texto_documento, table=-1): #? Annadi la tabla a la que se va a annadir e documento
         tokens_documento = prepro.tokenize_corpus([texto_documento])
         DocumentoController.dictionary.add_documents(tokens_documento)
         tf = DocumentoController.dictionary.doc2bow(tokens_documento[0])
@@ -213,7 +213,11 @@ class DocumentoController(BaseController):
         
         return docs
 
+    def create_doc_list(self, doc_list, table):
+        for doc in doc_list:
+            self.create_document(doc, table)
 
+        # print("Diccionario actualizado y guardado.")
 
 
 
