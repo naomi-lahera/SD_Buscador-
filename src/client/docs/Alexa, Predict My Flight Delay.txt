@@ -1,0 +1,3 @@
+The integration of technologies into home voice devices, specifically Amazon Alexa, is explored to predict flight delays. This innovative approach seeks to simplify and personalize the travel experience for users, providing them with accurate information about potential delays before they occur, which can be crucial for planning their activities.
+
+Machine Learning techniques are used to analyze large volumes of historical data related to flights, including weather data, flight schedules, and delay statistics. Once the models are trained, they integrate with Amazon Alexa, allowing users to request delay predictions simply using voice commands.

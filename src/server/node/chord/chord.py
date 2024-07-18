@@ -48,6 +48,7 @@ REPLICATE = 21
 ADD_DOC = 22
 STABILIZE_DATA_2 = 23
 STABILIZE_DATA_1 = 24
+QUEUE = 25
 
 #------------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
@@ -85,38 +86,38 @@ class ChordNodeReference:
     def _send_data(self, op: int, data: str = None) -> bytes:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                logger.debug(f'_send_data: {self.ip}: {op}')
+                #logger.debug(f'_send_data: {self.ip}: {op}')
                 if op == CHECK_NODE: s.settimeout(2)
                 s.connect((self.ip, self.port))
                 s.sendall(f'{op},{data}'.encode('utf-8'))
-                logger.debug(f'_send_data end: {self.ip}')
+                #logger.debug(f'_send_data end: {self.ip}')
                 return s.recv(1024)
         except Exception as e:
-            logger.debug(f"Error sending data: {e}")
+            #logger.debug(f"Error sending data: {e}")
             return b''
         
     # Internal method to send data to all nodes
     def _send_data_global(self, op: int, data: str = None) -> list:
         try:
-            logger.debug(f'Broadcast: {self.ip}')
+            #logger.debug(f'Broadcast: {self.ip}')
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             s.sendto(f'{op}, {data}'.encode(), (str(socket.INADDR_BROADCAST), PORT))
-            logger.debug(f'Broadcast end: {self.ip}')
+            #logger.debug(f'Broadcast end: {self.ip}')
             response = s.recv(1024).decode().split(',')
             s.close()
             return response
         except Exception as e:
-            logger.debug(f"Error sending Broadcast: {e}")
+            #logger.debug(f"Error sending Broadcast: {e}")
             return b''
                
     # Method to find a chord network node to conect
     def join(self, ip) -> list:
-        logger.debug(f'join start: {self.ip}')
+        #logger.debug(f'join start: {self.ip}')
         # response = self._send_data_global(JOIN, str(id)).decode().split(',')
         response = self._send_data_global(JOIN, ip)
-        # # logger.debug(f'join msg : {ip} - {self.ip}')
-        logger.debug(f'join end: {self.ip}')
+        # # #logger.debug(f'join msg : {ip} - {self.ip}')
+        #logger.debug(f'join end: {self.ip}')
         return response
         # return ChordNodeReference(response[1], self.port)
 
@@ -208,6 +209,7 @@ class ChordNode:
     # Method to find the predecessor of a given id
     def find_pred(self, id: int, direction=True) -> 'ChordNodeReference':
         node = self
+        
         if direction:
             while not self._inbetween(id, node.id, node.succ.id):
                 node = node.succ
@@ -237,21 +239,21 @@ class ChordNode:
       
     # Method to join a Chord network without 'node' reference as an entry point      
     def join_CN(self):
-        logger.debug(f'join_CN: {self.ip}')
+        #logger.debug(f'join_CN: {self.ip}')
         # self.ref.join(self.ip)
         msg = self.ref.join(self.ref)
-        logger.debug(f'join_CN msg: {msg}')
+        #logger.debug(f'join_CN msg: {msg}')
         return self.join(ChordNodeReference(msg[2], PORT))
 
     # Stabilize method to periodically verify and update the successor and predecessor
     def stabilize(self):
         while True:
             if self.succ.id != self.id:
-                logger.debug('stabilize')
+                #logger.debug('stabilize')
                 if self.succ.check_node() != b'':
                     x = self.succ.pred
                     if x.id != self.id:
-                        logger.debug(x)
+                        #logger.debug(x)
                         if x and self._inbetween(x.id, self.id, self.succ.id):
                             self.succ = x
                         self.succ.notify(self.ref)
@@ -261,7 +263,7 @@ class ChordNode:
 
     # Notify method to inform the node about another node
     def notify(self, node: 'ChordNodeReference'):
-        logger.debug(f'in notify, my id: {self.id} my pred: {node.id}')
+        #logger.debug(f'in notify, my id: {self.id} my pred: {node.id}')
         if node.id == self.id:
             pass
         elif not self.pred:
@@ -270,11 +272,11 @@ class ChordNode:
                 self.succ = node
                 self.succ.notify(self.ref)
         elif self._inbetween(node.id, self.pred.id, self.id):
-            self.pred.notify_pred(node)
+            # self.pred.notify_pred(node)
             self.pred = node
 
     def notify_pred(self, node: 'ChordNodeReference'):
-        logger.debug(f'in notify_pred, my id: {self.id} my succ: {node.id}')
+        #logger.debug(f'in notify_pred, my id: {self.id} my succ: {node.id}')
         self.succ = node
         self.succ.notify(self.ref)
 
@@ -298,15 +300,15 @@ class ChordNode:
                 
                 if i == 0 or self.finger[i-1].id != self.finger[i].id or i > 154:
                     to_write += f'>> ({i}, {next_index}): {self.finger[i].id}\n'
-            logger.debug(f'fix_fingers {self.id}: {self.succ} and {self.pred}')
-            logger.debug(f'{self.id}:\n{to_write}')
+            #logger.debug(f'fix_fingers {self.id}: {self.succ} and {self.pred}')
+            #logger.debug(f'{self.id}:\n{to_write}')
             time.sleep(10)
 
     # Check predecessor method to periodically verify if the predecessor is alive
     def check_predecessor(self):
         while True:
             if self.pred and self.pred.check_node() == b'':
-                logger.debug('\n\n\n ALARMA!!! PREDECESOR PERDIDO!!! \n\n\n')
+                #logger.debug('\n\n\n ALARMA!!! PREDECESOR PERDIDO!!! \n\n\n')
                 pred = self.find_pred(self.pred.id)
                 self.pred = None
                 pred.notify_pred(self.ref)
@@ -326,69 +328,25 @@ class ChordNode:
         node = self.find_succ(key_hash)
         return node.retrieve_key(key)
     
-    # Reciev boradcast message
-    def _reciev_broadcast(self):
-        # logger.debug("recive broadcast de chord")
-        
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # s.bind(('', int(self.port)))
-        s.bind(('', int(self.port)))
+    def send_broadcast(self,port, message):
+        # Crear un socket UDP
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        # logger.debug(f'running _reciev_broadcast running')
+        # Permitir reutilización de dirección local
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        while True:
-            # logger.debug(f"recive broadcast de chord in while por el puerto {self.port}!!!")
-            
-            msg, addr = s.recvfrom(1024)
+        # Habilitar broadcast
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-            # logger.debug(f'Received broadcast: {self.ip}')
+        try:
+            # Enviar mensaje por broadcast
+            sock.sendto(message.encode('utf-8'), ('<broadcast>', port))
+            print(f"Mensaje enviado: {message}")
+        finally:
+            # Cerrar el socket al finalizar
+            sock.close()
 
-            msg = msg.decode().split(',')
-            # logger.debug(f'received broadcast msg: {msg}')
-            # logger.debug(f"recive broadcast de chord in while before try!!!")
-            try:
-                
-                option = int(msg[0])
-                # logger.debug(f"recive broadcast de chord option {option}")
-                if option == REQUEST_BROADCAST_QUERY:
-                    hashed_query, query = msg[1].split(',', 1)  # Asume que el mensaje recibido tiene la forma: hash,query
-            
-                    # Verifica si el mensaje es una respuesta a nuestra consulta actual
-                    if hasattr(self, None) and self.hash_query == hashed_query:
-                        # Pone la respuesta en la cola de respuestas del Leader
-                        self.responses_queue.put(query)
-                
-                if option == JOIN:
-                    # msg[2] es el ip del nodo
-                    if msg[2] == self.ip:
-                        logger.debug(f'My own broadcast msg: {self.id}')
-                    else:
-                        # self.ref._send_data(JOIN, {self.ref})
-                        try:
-                            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                                # logger.debug(f'_send_data: {self.ip}')
-                                s.connect((msg[2], self.port))
-                                s.sendall(f'{JOIN},{self.ref}'.encode('utf-8'))
-                                # logger.debug(f'_send_data end: {self.ip}')
-                        except Exception as e:
-                            logger.debug(f"Error sending data: {e}")
-                    #TODO Enviar respuesta
-                
-                if option == FIND_LEADER:
-                    # print("Entra al if correcto en chord")
-                    # Asegúrate de que msg[1] contiene la dirección IP del cliente que hizo el broadcast
-                    ip_client = msg[1].strip()  # Elimina espacios en blanco
-                    response = f'{self.ip},{self.port}'.encode()  # Prepara la respuesta con IP y puerto del líder
-                    # print("-----------------------------------------")
-                    # print(f"enviando respuesta {response} a {(ip_client,8003)}")
-                    # print("-----------------------------------------")
-
-                    s.sendto(response, (ip_client,8003))  # Envía la respuesta al cliente
-                    
-                    
-            except Exception as e:
-                print(f"Error in _receiver_boradcast: {e}")
-
+    
     # def reasign(self, new: ChordNodeReference, node: int):
     #     min = self.pred.id if node == 1 else self.id
     #     max = self.id if node == 1 else self.succ.id 

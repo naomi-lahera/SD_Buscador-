@@ -3,6 +3,8 @@ import streamlit as st
 from pypdf import PdfReader
 import logging
 import joblib
+import json
+import time
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(threadName)s - %(message)s')
@@ -33,6 +35,7 @@ REPLICATE = 21
 ADD_DOC = 22
 STABILIZE_DATA_2 = 23
 STABILIZE_DATA_1 = 24
+SEARCH_CLIENT = 26
 #------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
 LEADER_SEND_CLIENT_FIND = 2
@@ -50,30 +53,26 @@ import socket
 
 class Client:
     
-    #_instance = None
-    # history = None
-    # _notified_agents = set()
-    # _agreed_agents = set()
-
-    # def __new__(cls):
-    #     if cls._instance is None:
-    #         cls._instance = super().__new__(cls)
-    #         cls._instance.history = []  # Set the history
-    #     return cls._instance
-    
     def __init__(self):
         self.port = 8002
         try:
-            history = joblib.load('instance.joblib')
-            self.history = history
-            self.query = ''
+            # history = joblib.load('instance.joblib')
+            with open('./src/client/instance.json', 'r') as i:
+                data = json.load(i)
+            self.history = data['history']
+            self.query = data['query']
+            
             print('loaded instance')
         except:
             self.history = []
             self.query = ''
-            joblib.dump(self.history, 'instance.joblib')
+            with open('./src/client/instance.json', 'w') as i:
+                json.dump({
+                    'history': self.history,
+                    'query': self.query} 
+                          , i)
+            # joblib.dump(self.history, 'instance.joblib')
             print("New instance")
-
 
     def send_broadcast_message(self, message):
         """
@@ -122,40 +121,60 @@ class Client:
             self.query = ''
             
             self.history.append((query_text, response))
-            joblib.dump(self.history, 'history.joblib')
+
+        except socket.timeout:
+            self.query = query_text
+            print("No se recibió respuesta en tiempo.")
+        finally:
+            sock.close()
+            with open('./src/client/instance.json', 'w') as i:
+                json.dump({
+                    'history': self.history,
+                    'query': self.query} 
+                          , i)
             
-            
+        return response if response else None 
+    
+    def clear_history(self):
+        self.history = []
+        
+        with open('./src/client/instance.json', 'w') as i:
+                json.dump({
+                    'history': self.history,
+                    'query': self.query} 
+                          , i)
+                
+    def insert_to_leader(self, text):
+        """
+        Envía una consulta al líder en el formato (20,<texto de la consulta>) usando broadcast.
+
+        Args:
+        query_text (str): El texto de la consulta a enviar.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Permitir broadcast
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
+        sock.bind(('', 8004))  # Enlazar el socket en el puerto 8004 para recibir respuestas
+      
+        remitter_ip = socket.gethostbyname(socket.gethostname())
+        data = f"{INSERT},{remitter_ip},{text}"
+
+        self.send_broadcast_message(data)
+        
+        sock.settimeout(3)
+        
+        response = None
+        try:
+            message, addr = sock.recvfrom(1024)
+            print(f"Mensaje recibido: {message.decode('utf-8')} desde {addr}")
+            response = True
         except socket.timeout:
             print("No se recibió respuesta en tiempo.")
         finally:
             sock.close()
             
-        return response if response else None 
+        return response 
         
-        
-    def send_insert_to_node(self, query_text,id = '172.17.0.2'):
-      
-        # Crear un socket TCP para enviar la consulta al líder
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
-        sock.bind(('', 8002))
-
-        # remitter_ip = socket.gethostbyname(socket.gethostname())
-        message = f"{INSERT},documentos,{query_text}"
-
-        # print(message)
-        try:
-            sock.connect((id, 8001))  # Establecer conexión con el líder
-            # print(f"Conectado al líder en {self.leader_ip}:{self.leader_port}")
-            sock.sendall(message.encode())  # Enviar mensaje usando sendall para sockets TCP
-
-            # print(f"Consulta enviada: {message}")
-            sock.shutdown(socket.SHUT_RDWR)  # Indicar que no se enviarán más datos
-        except Exception as e:
-            # print(f"Error al enviar la consulta al líder: {e}")
-            pass
-        finally:
-            sock.close()  # Asegurarse de cerrar el socket cuando termine
 #________________________________________________Streamlit__________________________________________#
 
 st.set_page_config(page_title="The PDF Bot", page_icon="📚")
@@ -169,11 +188,7 @@ st.markdown(init_text, unsafe_allow_html=True)
 
 st.markdown("""<div style="text-align: center;"<small>Go aehead</small></div>""", unsafe_allow_html=True)
 
-fp = st.sidebar.file_uploader("Upload a PDF file", "pdf")
-
-if fp:
-    st.write("Uploaded text")
-    # st.stop()
+fp = st.sidebar.file_uploader("Upload a .txt file", "txt")
     
 client = Client()
 
@@ -204,22 +219,45 @@ client = Client()
 
 # # bot = Chatbot("open-mixtral-8x7b", user_prompt=USER_PROMPT)
 
-# if st.sidebar.button("Reset conversation"):
-#     # bot.reset()
-#     pass
+if st.sidebar.button("Reset conversation"):
+    client.clear_history()
+    pass
 
-# # for message in bot.history():
-# #     with st.chat_message(message.role):
-# #         st.write(message.content)
+for message in client.history[-2:]:
+    with st.chat_message('user'):
+        st.write(message[0])
+        
+    with st.chat_message('assistant'):
+        st.write(message[1])
+
+if fp:
+    st.write("Uploaded text")
+    response = client.insert_to_leader(fp.getvalue().decode())
+
+    if response:
+        print('loaded doc')
+        st.warning('Loaded document')
+    else:
+        st.warning('Loading document')
+        print('Loading document')
+        # while not response:
+        #     response = client.send_insert_to_node(fp)
+        # st.warning('Loaded document')
+    # st.stop()
 
 msg = st.chat_input()
 
 if msg:
     response = client.send_query_to_leader(msg)
-    st.warning(response if response else 'We have no response')
-
-# with st.chat_message("user"):
-#     st.write(msg)
+    if not response:
+        st.warning('We have problems.') 
+    else:
+        st.experimental_rerun()
+    # while not response:
+    #     response = client.send_query_to_leader(msg)
+    #     time.sleep(5)    
+    # with st.chat_message("assistant"):
+    #     st.write(response if response else 'We have no response')
 
 # # extract = store.search(msg, 3)
 

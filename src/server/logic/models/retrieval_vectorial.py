@@ -53,5 +53,9 @@ class Retrieval_Vectorial(ModelSearchInterface):
         # Obtener los IDs de los documentos más relevantes
         most_relevant_doc_ids = [id_tf_documents[i][0] for i in sorted_sims_indices]
         documents = [controller.get_document_by_id(doc_id) for doc_id in most_relevant_doc_ids]
+        print("=========")
+        print(documents)
+        print("=========")
+        
 
-        return documents
+        return documents[0]

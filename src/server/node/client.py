@@ -189,7 +189,33 @@ class Client:
         sock.bind(('', 8004))  # Enlazar el socket en el puerto 8004 para recibir respuestas
         
         remitter_ip = socket.gethostbyname(socket.gethostname())
-        message = f"20,{remitter_ip},{query_text}"
+        message = f"{QUERY_FROM_CLIENT},{remitter_ip},{query_text}"
+
+        self.send_broadcast_message(message)
+        
+        sock.settimeout(3)
+        try:
+            message, addr = sock.recvfrom(1024)
+            print(f"Mensaje recibido: {message.decode('utf-8')} desde {addr}")
+        except socket.timeout:
+            print("No se recibió respuesta en tiempo.")
+        finally:
+            sock.close()
+            
+    def insert_to_leader(self, query_text):
+        """
+        Envía una consulta al líder en el formato (20,<texto de la consulta>) usando broadcast.
+
+        Args:
+        query_text (str): El texto de la consulta a enviar.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Permitir broadcast
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
+        sock.bind(('', 8004))  # Enlazar el socket en el puerto 8004 para recibir respuestas
+        
+        remitter_ip = socket.gethostbyname(socket.gethostname())
+        message = f"{INSERT},{remitter_ip},{query_text}"
 
         self.send_broadcast_message(message)
         

@@ -17,16 +17,61 @@ if __name__ == "__main__":
         # Inicializa y ejecuta el cliente
         # client_ip = '172.17.2.2'
         client = Client()
-        client.send_insert_to_node("Hi Client")
+        client.send_insert_to_node("""
+                                   Science is the systematic and logical approach to discovering how things \n
+                                   in the universe work. 
+                                   """)
+        time.sleep(2)
+        
+        
+       
+        client.send_insert_to_node("""This paper is so shit.""")
+        time.sleep(2)
+        
+        
+        client.send_insert_to_node("""
+                                   The field of science encompasses various disciplines, each focusing on different aspects
+
+                                   """,'172.17.0.3')
+        time.sleep(2)
+        
+        client.send_insert_to_node("""
+                                   of the world around us. From biology exploring life forms to physics investigating the fundamental\n
+                                   """,'172.17.0.3')
+        time.sleep(2)
+        
+#         client.send_insert_to_node("""
+#                                     The integration of technologies into home voice devices, specifically Amazon Alexa, is explored to predict flight delays. This innovative approach seeks to simplify and personalize the travel experience for users, providing them with accurate information about potential delays before they occur, which can be crucial for planning their activities.
+# Machine Learning techniques are used to analyze large volumes of historical data related to flights, including weather data, flight schedules, and delay statistics. Once the models are trained, they integrate with Amazon Alexa, allowing users to request delay predictions simply using voice commands.
+#                                    """,'172.17.0.3')
+#         time.sleep(2)
+        
+#         client.send_insert_to_node("""
+#                                    It addresses the challenge of predicting the propagation of flight delays using deep learning techniques. This study focuses on understanding how delays in one flight can affect other connected flights in an air network. The main objective is to develop a model that can accurately predict the propagation of flight delays. This involves not only predicting whether a specific flight will be delayed, but also how widely that delay could spread to other connected flights.
+# A CNN model composed of several hidden layers that process the input data to generate predictions about delay propagation is described. The model is capable of capturing complex patterns and non-linear relationships in the data.
+#                                     """,'172.17.0.3')
+#         time.sleep(2)
+        
+        
+        client.send_insert_to_node("""This paper is so shit.""",'172.17.0.3')
         # client.send_insert_to_node("172.17.0.2")
         # client.send_insert_to_node("172.17.0.3",'172.17.0.3')
         # client.send_insert_to_node("172.17.0.4",'172.17.0.4')
         # client.send_insert_to_node("172.17.0.5",'172.17.0.5')
-        # client.send_query_to_leader("Hi leader!!!")
+        time.sleep(3)
+        client.send_query_to_leader("science")
+        time.sleep(60)
+        client.send_query_to_leader("science")
+        time.sleep(60)
+        client.send_query_to_leader("science")
+        time.sleep(60)
+        client.send_query_to_leader("science")
         
-        for i in range(3):
-            client.send_query_to_leader("I like science")
-            time.sleep(2)
+        
+        
+        # for i in range(3):
+        #     client.send_query_to_leader("I like science")
+        #     time.sleep(2)
             
     elif len(sys.argv) == 1:
         node = Node(ip)

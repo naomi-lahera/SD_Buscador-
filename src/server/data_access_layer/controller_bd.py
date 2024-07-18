@@ -123,19 +123,21 @@ class DocumentoController(BaseController):
         cursor.execute(f'SELECT text FROM {table} WHERE id = ?', (id,))
         
         doc = cursor.fetchone()[0]
-        tokens = prepro.tokenize_corpus([doc])
         
-        bow = DocumentoController.dictionary.doc2bow(tokens[0])
-        
-        for word, count in bow:
-            DocumentoController.dictionary.cfs[word] -= count
-            DocumentoController.dictionary.dfs[word] -= 1
-        
-        cursor = conn.cursor()
-        cursor.execute(f'DELETE FROM {table} WHERE id = ?', (id,))
-        conn.commit()
-        conn.close()
-        dump(DocumentoController.dictionary, 'dictionary.joblib')
+        if doc:
+            tokens = prepro.tokenize_corpus([doc])
+            
+            bow = DocumentoController.dictionary.doc2bow(tokens[0])
+            
+            for word, count in bow:
+                DocumentoController.dictionary.cfs[word] -= count
+                DocumentoController.dictionary.dfs[word] -= 1
+            
+            cursor = conn.cursor()
+            cursor.execute(f'DELETE FROM {table} WHERE id = ?', (id,))
+            conn.commit()
+            conn.close()
+            dump(DocumentoController.dictionary, 'dictionary.joblib')
 
     def delete_all_documents(self):
         conn = self.connect()

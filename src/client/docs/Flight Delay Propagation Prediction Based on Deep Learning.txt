@@ -1,0 +1,3 @@
+It addresses the challenge of predicting the propagation of flight delays using deep learning techniques. This study focuses on understanding how delays in one flight can affect other connected flights in an air network. The main objective is to develop a model that can accurately predict the propagation of flight delays. This involves not only predicting whether a specific flight will be delayed, but also how widely that delay could spread to other connected flights.
+
+A CNN model composed of several hidden layers that process the input data to generate predictions about delay propagation is described. The model is capable of capturing complex patterns and non-linear relationships in the data.
