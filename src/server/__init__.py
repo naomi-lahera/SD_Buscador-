@@ -5,6 +5,7 @@ import sys
 from logic.models.retrieval_vectorial import Retrieval_Vectorial
 from data_access_layer.controller_bd import DocumentoController
 from node.client import Client   
+import time
 # from node.client import Client   
 # from node.chord.chord import ChordNodeReference
 
@@ -21,10 +22,12 @@ if __name__ == "__main__":
         # client.send_insert_to_node("172.17.0.3",'172.17.0.3')
         # client.send_insert_to_node("172.17.0.4",'172.17.0.4')
         # client.send_insert_to_node("172.17.0.5",'172.17.0.5')
-        client.send_query_to_leader("Hi leader!!!")
+        # client.send_query_to_leader("Hi leader!!!")
         
-        
-        # client.send_query_to_leader("I like science")
+        for i in range(3):
+            client.send_query_to_leader("I like science")
+            time.sleep(2)
+            
     elif len(sys.argv) == 1:
         node = Node(ip)
         

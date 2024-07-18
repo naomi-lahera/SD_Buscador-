@@ -46,8 +46,23 @@ LEADER_POW = 4
 CHECK_LEADER = 23
 
 class Client:
+    
+    _instance = None
+    history = None
+    # _notified_agents = set()
+    # _agreed_agents = set()
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.history = []  # Set the history
+        return cls._instance
+    
     def __init__(self):
         self.port = 8002
+        self.history = []
+        
+        print("New instance")
         # self.leader_ip = None
         # self.leader_port = None
         # self.update_leader_thread = threading.Thread(target=self.update_leader_info, daemon=True)

@@ -151,7 +151,7 @@ class Node(ChordNode):
                 # print(f"RECIBIDO QUERY sended to {(client_to_send,8004)}")
                 response = f'Hola SERVER'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
-                return
+                continue
                 #TODO: Hay q hacer esto.....
                 client_to_send ,documents = self.receive_query_from_client(self,text,ip_client)
                 
@@ -230,6 +230,7 @@ class Node(ChordNode):
                 
                 # lo elimina de sus documentos
                 self.del_doc(doc[0], 'documentos')
+                self.succ._send_data(REMOVE, f'replica_pred,{doc[1]}')
             
             else:
                 # esta entre los 2, asi que le pertenece al sucesor y le notifica que lo replique
