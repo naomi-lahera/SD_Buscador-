@@ -55,7 +55,8 @@ if __name__ == "__main__":
         # adding()
         # adding2()
         # print('Borrando documento con id 11')
-        client.delete(0)
+        # client.delete(0)
+        client.update(1, 'NAOMI')
         # client.delete(11)
         
 #       client.send_insert_to_node("""

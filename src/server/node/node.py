@@ -258,6 +258,7 @@ class Node(ChordNode):
                 
             elif option == UPDATE_LEADER and self.e.ImTheLeader:
                 id = int(received[1])
+                text = ''.join(received[2:])
                 node: ChordNodeReference = self.find_succ(id)
                 
                 logger.debug('*******************************************************************')
@@ -267,13 +268,13 @@ class Node(ChordNode):
                 logger.debug('*******************************************************************')
                 
                 if node.id != self.id:
-                    node._send_data(UPDATE,f'{id},{text},documentos')
+                    node._send_data(UPDATE,f'{id},documentos,{text}')
                 else:
                     self.upd_doc(id, text, 'documentos')
                     if self.pred:
-                        self.pred._send_data(UPDATE, f'{id},replica_succ')
+                        self.pred._send_data(UPDATE, f'{id},replica_succ,{text}')
                     if self.succ.id != self.id:
-                        self.succ._send_data(UPDATE, f'{id},replica_pred')
+                        self.succ._send_data(UPDATE, f'{id},replica_pred,{text}')
                     
                 response = f'Deleted DOCUMENT'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
@@ -663,21 +664,21 @@ class Node(ChordNode):
         elif option == UPDATE:
             id = int(data[1])
             table = data[2]
-            text = ''.join(data[:3])
+            text = ''.join(data[3:])
             
             logger.debug('*******************************************************************')
-            logger.debug('                        UPDATE LEADER                              ')
+            logger.debug(f'                        UPDATE DATA: {data}                              ')
             logger.debug(f'                        ID:  {id}                                 ')
             logger.debug(f'                       NODE:  {self.id}                           ')
             logger.debug('*******************************************************************')
             
-            self.del_doc(id, table)
+            self.upd_doc(id, text, table)
             
             if table == 'documentos':
                 if self.pred:
-                    self.pred._send_data(UPDATE, f'{id},replica_succ')
+                    self.pred._send_data(UPDATE, f'{id},replica_succ,{text}')
                 if self.succ.id != self.id:
-                    self.succ._send_data(UPDATE, f'{id},replica_pred')
+                    self.succ._send_data(UPDATE, f'{id},replica_pred,{text}')
                 
         if data_resp and option == GET:
             response = data_resp.encode()
