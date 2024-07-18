@@ -5,6 +5,13 @@ from gensim.corpora import Dictionary
 from logic.build.preprocessing_data.preprocess import prepro
 import json
 from data_access_layer.controller_interface import BaseController
+import logging
+
+# Configuración inicial de logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(threadName)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 def read_or_create_joblib(ip):
     ip = str(ip)
@@ -58,9 +65,14 @@ class DocumentoController(BaseController):
     def get_documents(self, table):
         conn = self.connect()
         cursor = conn.cursor()
-        cursor.execute(f'SELECT * FROM {table}')
+        cursor.execute(f'SELECT id, text FROM {table}')
         docs = cursor.fetchall()
         conn.close()
+        
+        logger.debug('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        logger.debug(type(docs))
+        logger.debug(f'                                  All docs: \n : {docs}')
+        logger.debug('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         
         return docs
     
@@ -122,8 +134,13 @@ class DocumentoController(BaseController):
         cursor = conn.cursor()
         cursor.execute(f'SELECT text FROM {table} WHERE id = ?', (id,))
         
-        doc = cursor.fetchone()[0]
         
+        doc = cursor.fetchone()[0]
+        logger.debug(doc)
+        logger.debug(doc)
+        logger.debug(doc)
+        logger.debug(doc)
+        logger.debug(doc)
         if doc:
             tokens = prepro.tokenize_corpus([doc])
             

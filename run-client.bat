@@ -8,4 +8,4 @@ set ARGUMENTOS=%*
 set VOLUMEN_MONTAR=%~dp0
 
 :: Ejecuta el comando docker con los argumentos capturados y luego fuerza la eliminación del contenedor
-docker run -it --rm -v "%VOLUMEN_MONTAR%:/app" -p 8501:8501 sist-dist:v0 /bin/bash -c "streamlit run src/client/app.py"
+docker run -it --rm -v "%VOLUMEN_MONTAR%:/app" -p 8501:8501 sist-dist:v0 /bin/bash -c "streamlit run src/client/Search.py"

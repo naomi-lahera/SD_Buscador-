@@ -45,6 +45,12 @@ STABILIZE_DATA_2 = 23
 STABILIZE_DATA_1 = 24
 QUEUE = 25
 SEARCH_CLIENT = 26
+GET_DOCS = 27
+GET_DOCS_LEADER = 28
+DELETE_LEADER = 29
+DELETE = 30
+UPDATE_LEADER = 31
+UPDATE = 32
 
 def read_or_create_db(controller):
     connect = controller.connect()
@@ -149,16 +155,21 @@ class Node(ChordNode):
         while True:
             # print(f"PUERTO: {self.port+1}")
             msg, client_address = broadcast_socket.recvfrom(1024)
-            #logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
-            #logger.debug("\n****************************************")
-            #logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
-            #logger.debug("\n****************************************")
+            logger.debug(f"Broadcast recibido de {client_address}: {msg.decode('utf-8')}")
+            logger.debug("\n****************************************")
+            logger.debug(f"\nMensaje del cliente: {msg.decode('utf-8').split(',')}")
+            logger.debug("\n****************************************")
             
             received = msg.decode('utf-8').split(',') 
             
             option = received[0]
             ip_client = received[1]
-            text = ','.join(received[2:])
+            
+            try:
+                text = ','.join(received[2:])
+                logger.debug(f'TEXTO: \n {text}')
+            except:
+                text = ''
             
             option = int(option)
             
@@ -194,11 +205,18 @@ class Node(ChordNode):
                 #logger.debug('*******************************************************************')
                 #logger.debug(f'\n\nTHE TEXT:\n\n{text}\n\n')
                 
-                id = getShaRepr(text[:6])
+                id = getShaRepr(text)
                 #logger.debug(f'----------------------ID: {id}-------------------------------------')
                 
                 node: ChordNodeReference = self.find_succ(id)
                 #logger.debug(f'______________________SUCCESOR: {node}______________________________')
+                
+                logger.debug('*******************************************************************')
+                logger.debug('                        INSERT LEADER                              ')
+                logger.debug(f'                        ID:  {id}                                 ')
+                logger.debug(f'                     FROM:  {self.id}                             ')
+                logger.debug(f'                     TO:  {node.id}                               ')
+                logger.debug('*******************************************************************')
                 
                 if node.id != self.id:
                     node._send_data(INSERT,f'documentos,{text}')
@@ -207,12 +225,76 @@ class Node(ChordNode):
                     
                 response = f'Loaded DOCUMENT'.encode()  # Prepara la respuesta con IP y puerto del líder
                 broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
-    
-
+                
+            elif option == GET_DOCS_LEADER and self.e.ImTheLeader:
+                client_to_send, docs = self.get_all_nodes_docs(ip_client)
+                
+                response = f'{GET_DOCS_LEADER},{docs}'.encode()  # Prepara la respuesta con IP y puerto del líder
+                broadcast_socket.sendto(response, (client_to_send,8004))  # Envía la respuesta al cliente
+                print(f"{docs} sended to {(client_to_send, 8004)}")
+                
+            elif option == DELETE_LEADER and self.e.ImTheLeader:           
+                id = int(received[1])
+                node: ChordNodeReference = self.find_succ(id)
+                
+                logger.debug('*******************************************************************')
+                logger.debug('                        DELETE LEADER                              ')
+                logger.debug(f'                        ID:  {id}                                 ')
+                logger.debug(f'                       NODE:  {node.id}                           ')
+                logger.debug('*******************************************************************')
+                
+                if node.id != self.id:
+                    node._send_data(DELETE,f'{id},documentos')
+                else:
+                    self.del_doc(id, 'documentos')
+                    
+                    if self.pred:
+                        self.pred._send_data(DELETE, f'{id},replica_succ')
+                    if self.succ.id != self.id:
+                        self.succ._send_data(DELETE, f'{id},replica_pred')
+                    
+                response = f'Deleted DOCUMENT'.encode()  # Prepara la respuesta con IP y puerto del líder
+                broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
+                
+            elif option == UPDATE_LEADER and self.e.ImTheLeader:
+                id = int(received[1])
+                node: ChordNodeReference = self.find_succ(id)
+                
+                logger.debug('*******************************************************************')
+                logger.debug('                        UPDATE LEADER                              ')
+                logger.debug(f'                        ID:  {id}                                 ')
+                logger.debug(f'                       NODE:  {node.id}                           ')
+                logger.debug('*******************************************************************')
+                
+                if node.id != self.id:
+                    node._send_data(UPDATE,f'{id},{text},documentos')
+                else:
+                    self.upd_doc(id, text, 'documentos')
+                    if self.pred:
+                        self.pred._send_data(UPDATE, f'{id},replica_succ')
+                    if self.succ.id != self.id:
+                        self.succ._send_data(UPDATE, f'{id},replica_pred')
+                    
+                response = f'Deleted DOCUMENT'.encode()  # Prepara la respuesta con IP y puerto del líder
+                broadcast_socket.sendto(response, (ip_client,8004))  # Envía la respuesta al cliente
+                
+    def get_all_nodes_docs(self, ip_client: str):
+        self.send_broadcast(8001, f'{GET_DOCS}')
+        
+        documents = dict()
+        
+        t = threading.Thread(target=self.start_server_to_receive_responses, args=(8002, documents))
+        t.start()
+        
+        
+        t.join()
+        
+        logger.debug(f'\n\n\nNode documents : \n {documents}\n\n\n')
+        
+        return ip_client, documents
                     
     def receive_query_from_client(self, query: str, ip_client: str):
         
-
         data_to_send = f'{SEARCH_CLIENT},{query}'
         self.send_broadcast(8001, data_to_send)
     
@@ -262,15 +344,21 @@ class Node(ChordNode):
                     message, addr = server_socket.recvfrom(1024)
                     message = message.decode()
                     message = message.split(",")
-                    text = (",").join(message[1:])
                     option = int(message[0])
-                    text = message[1]
-
-                    print(f"//////DEL NODO PA LA COLA {option}////////")
-                    print(f"//////{text}///////")
-                    print("/////////////////")
+                    
                     if option == SEARCH:
+                        text = (",").join(message[1:])
+                        text = message[1]
+
+                        print(f"//////DEL NODO PA LA COLA {option}////////")
+                        print(f"//////{text}///////")
+                        print("/////////////////")
+                        # if option == SEARCH:
                         response_queue.put(text)
+                        
+                    if option == GET_DOCS:
+                        logger.debug(f'\n\n\nMessage:\n {message[1:]}\n\n\n')
+                        response_queue[message[1]] = message[2]
                 except:
                     break
                 
@@ -435,6 +523,15 @@ class Node(ChordNode):
                     #logger.debug(f"Error sending data: {e}")
                     continue
                 
+            elif option == GET_DOCS:
+                data_resp = self.get_docs('documentos')
+                logger.debug(f'NODE: {self.id} DOCUMMENTS: \n {data_resp}')
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    response = f'{GET_DOCS},{data_resp}'.encode()
+                    
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                    s.sendto(response, (str(socket.INADDR_BROADCAST), 8002))
+                
             
             # except Exception as e:
             #     print(f"Error in _receiver_boradcast: {e}")
@@ -491,8 +588,15 @@ class Node(ChordNode):
             #logger.debug('*******************************************************************')
             table = data[1]
             text = ','.join(data[2:])
-            #logger.debug(f'\n\nTHE TEXT:\n\n{text}\n\n')
-            id = getShaRepr(','.join(data[2:min(len(data),6)]))
+            
+            logger.debug(f'\n\nTHE TEXT:\n\n{text}\n\n')
+            # id = getShaRepr(','.join(data[2:min(len(data),6)]))
+            id = getShaRepr(text)
+            
+            
+            logger.debug(f"COMO SE VA  A GUARDAR")
+            logger.debug(f"{id}, {text}, {table}")
+            logger.debug(f"====================")
             
             self.add_doc(id, text, table)
             
@@ -510,21 +614,18 @@ class Node(ChordNode):
             data_resp = self.del_doc(id, table)
             
             if table == 'documentos':
-                self.pred._send_data(REMOVE, f'replica_succ,{id}')
-                self.succ._send_data(REMOVE, f'replica_pred,{id}')
+                if self.pred: self.pred._send_data(REMOVE, f'replica_succ,{id}')
+                if self.succ.id != self.id: self.succ._send_data(REMOVE, f'replica_pred,{id}')
 
         elif option == EDIT:
             table = data[1]
-            for i in range(2, len(data)):
-                if data[i] == '---':
-                    id = ','.join(data[1:i])
-                    text = ','.join(data[i+1:])
-                    self.upd_doc(id, text, table)
+            id = data[2]
+            text = ','.join(data[3:])
+            self.upd_doc(id, text, table)
                     
-                    if table == 'documentos':
-                        self.pred._send_data(EDIT, f'replica_succ,{id},{text}')
-                        self.succ._send_data(EDIT, f'replica_pred,{id},{text}')
-                    break
+            if table == 'documentos':
+                if self.pred: self.pred._send_data(EDIT, f'replica_succ,{id},{text}')
+                if self.succ.id != self.id: self.succ._send_data(EDIT, f'replica_pred,{id},{text}')
 
         elif option == SEARCH:
             query = ','.join(data[1:])
@@ -540,10 +641,44 @@ class Node(ChordNode):
 
         elif option == CHECK_DOCKS:
             self.check_docs_pred()
-
-
-
-
+            
+        elif option == DELETE:
+            id = int(data[1])
+            table = data[2]
+            
+            logger.debug('*******************************************************************')
+            logger.debug('                        DELETE LEADER                              ')
+            logger.debug(f'                        ID:  {id}                                 ')
+            logger.debug(f'                       NODE:  {self.id}                           ')
+            logger.debug('*******************************************************************')
+            
+            self.del_doc(id, table)
+                        
+            if table == 'documentos':
+                if self.pred:
+                    self.pred._send_data(DELETE, f'{id},replica_succ')
+                if self.succ.id != self.id:
+                    self.succ._send_data(DELETE, f'{id},replica_pred')
+                    
+        elif option == UPDATE:
+            id = int(data[1])
+            table = data[2]
+            text = ''.join(data[:3])
+            
+            logger.debug('*******************************************************************')
+            logger.debug('                        UPDATE LEADER                              ')
+            logger.debug(f'                        ID:  {id}                                 ')
+            logger.debug(f'                       NODE:  {self.id}                           ')
+            logger.debug('*******************************************************************')
+            
+            self.del_doc(id, table)
+            
+            if table == 'documentos':
+                if self.pred:
+                    self.pred._send_data(UPDATE, f'{id},replica_succ')
+                if self.succ.id != self.id:
+                    self.succ._send_data(UPDATE, f'{id},replica_pred')
+                
         if data_resp and option == GET:
             response = data_resp.encode()
             conn.sendall(response)

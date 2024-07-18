@@ -17,31 +17,49 @@ if __name__ == "__main__":
         # Inicializa y ejecuta el cliente
         # client_ip = '172.17.2.2'
         client = Client()
-        client.send_insert_to_node("""
-                                   Science is the systematic and logical approach to discovering how things \n
-                                   in the universe work. 
-                                   """)
-        time.sleep(2)
+        def adding():
+            client.insert_to_leader("""172.17.0.2""")
+            time.sleep(2)
+            client.insert_to_leader("""172.17.0.3""")
+            time.sleep(2)
+            client.insert_to_leader("""172.17.0.4""") # ,'172.17.0.3'
+            time.sleep(2) 
+            client.insert_to_leader("""172.17.0.5""") # '172.17.0.4'
+            time.sleep(2)
+          
+        def adding2():
+            client.insert_to_leader("""
+                                         Science is the systematic and logical approach to discovering how things
+                                         in the universe work. 
+                                         """)
+            time.sleep(2)
+            client.insert_to_leader("""This paper is so shit.""")
+            time.sleep(2)
+            client.insert_to_leader("""
+                                        Hi i am not a of science encompasses various disciplines, each focusing on different aspects
+                                         """) # ,'172.17.0.3'
+            time.sleep(2) 
+            client.insert_to_leader("""
+                                        of the world around us. From biology exploring life forms to physics science investigating the fundamental
+                                        """) # '172.17.0.4'
+            time.sleep(2)
+            client.insert_to_leader("""
+                                       GUARAPO IS A COOL FACTOR IN THE NIGHT
+                                        """) # ,'172.17.0.4'
+            time.sleep(2)
+            client.insert_to_leader("""
+                                       the important of science becomes true
+                                        """) # ,'172.17.0.5
+            time.sleep(2)
+             
+        # adding()
+        # adding2()
+        # print('Borrando documento con id 11')
+        client.delete(0)
+        # client.delete(11)
         
-        
-       
-        client.send_insert_to_node("""This paper is so shit.""")
-        time.sleep(2)
-        
-        
-        client.send_insert_to_node("""
-                                   The field of science encompasses various disciplines, each focusing on different aspects
-
-                                   """,'172.17.0.3')
-        time.sleep(2)
-        
-        client.send_insert_to_node("""
-                                   of the world around us. From biology exploring life forms to physics investigating the fundamental\n
-                                   """,'172.17.0.3')
-        time.sleep(2)
-        
-#         client.send_insert_to_node("""
-#                                     The integration of technologies into home voice devices, specifically Amazon Alexa, is explored to predict flight delays. This innovative approach seeks to simplify and personalize the travel experience for users, providing them with accurate information about potential delays before they occur, which can be crucial for planning their activities.
+#       client.send_insert_to_node("""
+#                                   The integration of technologies into home voice devices, specifically Amazon Alexa, is explored to predict flight delays. This innovative approach seeks to simplify and personalize the travel experience for users, providing them with accurate information about potential delays before they occur, which can be crucial for planning their activities.
 # Machine Learning techniques are used to analyze large volumes of historical data related to flights, including weather data, flight schedules, and delay statistics. Once the models are trained, they integrate with Amazon Alexa, allowing users to request delay predictions simply using voice commands.
 #                                    """,'172.17.0.3')
 #         time.sleep(2)
@@ -53,19 +71,19 @@ if __name__ == "__main__":
 #         time.sleep(2)
         
         
-        client.send_insert_to_node("""This paper is so shit.""",'172.17.0.3')
+        # client.send_insert_to_node("""This paper is so shit.""",'172.17.0.3')
         # client.send_insert_to_node("172.17.0.2")
         # client.send_insert_to_node("172.17.0.3",'172.17.0.3')
         # client.send_insert_to_node("172.17.0.4",'172.17.0.4')
         # client.send_insert_to_node("172.17.0.5",'172.17.0.5')
-        time.sleep(3)
-        client.send_query_to_leader("science")
-        time.sleep(60)
-        client.send_query_to_leader("science")
-        time.sleep(60)
-        client.send_query_to_leader("science")
-        time.sleep(60)
-        client.send_query_to_leader("science")
+        # time.sleep(3)
+        # client.send_query_to_leader("science")
+        # time.sleep(60)
+        # client.send_query_to_leader("science")
+        # time.sleep(60)
+        # client.send_query_to_leader("science")
+        # time.sleep(60)
+        # client.send_query_to_leader("science")
         
         
         

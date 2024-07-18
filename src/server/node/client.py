@@ -32,6 +32,14 @@ REPLICATE = 21
 ADD_DOC = 22
 STABILIZE_DATA_2 = 23
 STABILIZE_DATA_1 = 24
+
+GET_DOCS = 27
+GET_DOCS_LEADER = 28
+DELETE_LEADER = 29
+DELETE = 30
+UPDATE_LEADER = 31
+UPDATE = 32
+
 #------------------------PUERTOS------------------------------
 LEADER_REC_CLIENT = 1
 LEADER_SEND_CLIENT_FIND = 2
@@ -167,10 +175,13 @@ class Client:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Permitir broadcast
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
+        
+        
 
         try:
             # Enviar el mensaje por broadcast al puerto 8002
             sock.sendto(message.encode(), ('<broadcast>', 8002))
+            print('BROADCAST')
         except Exception as e:
             print(f"Error al enviar el mensaje por broadcast: {e}")
         finally:
@@ -265,6 +276,37 @@ class Client:
     #         except Exception as e:
     #             print(f"Error al conectar al líder: {e}. Reintentando en 5 segundos...")
     #             threading.Timer(5, self.run).start()  # Reintentar después de 5 segundos
+    
+    def delete(self, id):
+        """
+        Envía una consulta al líder en el formato (20,<texto de la consulta>) usando broadcast.
+
+        Args:
+        query_text (str): El texto de la consulta a enviar.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Permitir broadcast
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Permitir reutilización del puerto
+        sock.bind(('', 8004))  # Enlazar el socket en el puerto 8004 para recibir respuestas
+      
+        remitter_ip = socket.gethostbyname(socket.gethostname())
+        data = f"{DELETE_LEADER},{id}"
+
+        self.send_broadcast_message(data)
+        
+        sock.settimeout(3)
+        
+        response = None
+        try:
+            message, addr = sock.recvfrom(1024)
+            print(f"Mensaje recibido: {message.decode('utf-8')} desde {addr}")
+            response = True
+        except socket.timeout:
+            print("No se recibió respuesta en tiempo.")
+        finally:
+            sock.close()
+            
+        return response
 
 # # Ejemplo de uso
 # c = Client()
