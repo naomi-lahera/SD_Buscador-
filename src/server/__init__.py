@@ -52,11 +52,11 @@ if __name__ == "__main__":
                                         """) # ,'172.17.0.5
             time.sleep(2)
              
-        # adding()
-        # adding2()
+        adding()
+        adding2()
         # print('Borrando documento con id 11')
         # client.delete(0)
-        client.update(1, 'NAOMI')
+        # client.update(1, 'NAOMI')
         # client.delete(11)
         
 #       client.send_insert_to_node("""

@@ -143,7 +143,10 @@ class Node(ChordNode):
     def notify(self, node: 'ChordNodeReference'):
         super().notify(node)
         self.check_docs()
-        self.pred._send_data(CHECK_DOCKS)
+        try:
+            self.pred._send_data(CHECK_DOCKS)
+        except:
+            logger.debug(f'No hay predecesor {self.id}')
     
     def get_docs_between(self, tables, min, max):
         return self.controller.get_docs_between(tables, min, max)
@@ -374,6 +377,12 @@ class Node(ChordNode):
         my_docs = self.get_docs('documentos')
         pred_docs = self.get_docs('replica_pred')
 
+        if not self.pred:
+            for doc in pred_docs:
+                self.add_doc(doc[0], doc[1], 'documentos')
+                self.del_doc(doc[0], 'replica_pred')
+            return
+            
         for doc in my_docs:
             # si el id NO esta entre su nuevo predecesor y el, o sea le pertenece a su predecesor
             if not self._inbetween(doc[0], self.pred.id, self.id):
@@ -383,7 +392,7 @@ class Node(ChordNode):
                 
                 # lo elimina de sus documentos
                 self.del_doc(doc[0], 'documentos')
-                self.succ._send_data(REMOVE, f'replica_pred,{doc[0]}')
+                self.succ._send_data(DELETE, f'replica_pred,{doc[0]}')
             
             else:
                 # esta entre los 2, asi que le pertenece al sucesor y le notifica que lo replique
@@ -408,10 +417,10 @@ class Node(ChordNode):
                 self.del_doc(doc[0], 'replica_pred')
 
                 # despues lo mandan a replicar
-                # if self.pred:
-                #     self.pred._send_data(INSERT, f'replica_succ,{doc[1]}')
-                # if self.succ.id != self.id:
-                #     self.succ._send_data(INSERT, f'replica_pred,{doc[1]}')
+                if self.pred:
+                    self.pred._send_data(INSERT, f'replica_succ,{doc[1]}')
+                if self.succ.id != self.id:
+                    self.succ._send_data(INSERT, f'replica_pred,{doc[1]}')
 
     # luego aqui entra el predecesor
     def check_docs_pred(self):
@@ -419,12 +428,17 @@ class Node(ChordNode):
         # toma sus documentos y las replicas de su sucesor
         my_docs = self.get_docs('documentos')
         succ_docs = self.get_docs('replica_succ')
+        
+        if not self.succ or self.succ.id == self.id:
+            for doc in succ_docs:
+                self.add_doc(doc[0], doc[1], 'documentos')
+                self.del_doc(doc[0], 'replica_succ')
+            return
 
         for doc in my_docs:
            
             # los documentos que me pertenecen los replico a mi nuevo sucesor
             self.succ._send_data(INSERT, f'replica_pred,{doc[1]}')
-
 
         for doc in succ_docs:
             # si el id NO esta entre su nuevo sucesor y el, o sea le pertenece al antiguo sucesor
@@ -644,8 +658,8 @@ class Node(ChordNode):
             self.check_docs_pred()
             
         elif option == DELETE:
-            id = int(data[1])
-            table = data[2]
+            id = int(data[2])
+            table = data[1]
             
             logger.debug('*******************************************************************')
             logger.debug('                        DELETE LEADER                              ')
